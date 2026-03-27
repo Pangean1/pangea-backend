@@ -1,5 +1,7 @@
 # PANGEA Backend
 
+> 📄 For the full project vision and technical specification, see the [PANGEA White Paper](docs/PANGEA_WhitePaper_Technical_v4.0.docx)
+
 > Non-profit peer-to-peer humanitarian donation platform on **Polygon PoS** (Amoy testnet).
 
 PANGEA lets donors send ERC-20 tokens directly to verified humanitarian campaigns. This repository is the Python/FastAPI backend that indexes on-chain `DonationSent` events, stores them in PostgreSQL, and delivers Firebase push notifications to campaign recipients in real time.
