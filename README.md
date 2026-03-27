@@ -1,6 +1,6 @@
 # PANGEA Backend
 
-> 📄 For the full project vision and technical specification, see the [PANGEA White Paper](docs/PANGEA_WhitePaper_Technical_v4.0.docx)
+> 📄 For the full project vision and technical specification, see the [PANGEA White Paper](docs/WHITEPAPER.md)
 
 > Non-profit peer-to-peer humanitarian donation platform on **Polygon PoS** (Amoy testnet).
 
