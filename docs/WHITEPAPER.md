@@ -167,6 +167,8 @@ For donors paying by card (Option B), the flow is:
 
 **Repository:** https://github.com/Pangean1/pangea-contracts
 
+**Deployed Contract (Polygon Amoy Testnet):** [`0x44393dbFe52026530B6b6a92eEEFF0c0fC347E6e`](https://amoy.polygonscan.com/address/0x44393dbFe52026530B6b6a92eEEFF0c0fC347E6e)
+
 ### 5.1 PangeaDonation.sol
 
 The contract inherits OpenZeppelin's `Ownable` and `ReentrancyGuard`.
