@@ -6,7 +6,7 @@
 
 PANGEA lets donors send ERC-20 tokens directly to verified humanitarian campaigns. This repository is the Python/FastAPI backend that indexes on-chain `DonationSent` events, stores them in PostgreSQL, and delivers Firebase push notifications to campaign recipients in real time.
 
-- Smart contracts: [pangea-contracts](https://github.com/pangea-project/pangea-contracts) _(see also §Smart Contract)_
+- Smart contracts: [pangea-contracts](https://github.com/Pangean1/pangea-contracts) _(see also §Smart Contract)_
 - Network: Polygon Amoy (testnet) → Polygon PoS mainnet
 
 ---
@@ -130,7 +130,7 @@ The `run_listener()` coroutine starts as a background `asyncio` task during Fast
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/pangea-project/pangea-backend.git
+git clone https://github.com/Pangean1/pangea-backend.git
 cd pangea-backend
 
 # 2. Create and activate a virtual environment
@@ -384,7 +384,7 @@ sudo journalctl -u pangea-backend -f
 
 ## Smart Contract
 
-The on-chain logic lives in the [pangea-contracts](https://github.com/pangea-project/pangea-contracts) repository. The compiled ABI is vendored at `app/abi/PangeaDonation.json`.
+The on-chain logic lives in the [pangea-contracts](https://github.com/Pangean1/pangea-contracts) repository. The compiled ABI is vendored at `app/abi/PangeaDonation.json`.
 
 Key events and functions used by this backend:
 
@@ -404,7 +404,7 @@ This project is released under the **MIT License**.
 ```
 MIT License
 
-Copyright (c) 2026 PANGEA Project
+Copyright (c) 2026 PANGEA
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
