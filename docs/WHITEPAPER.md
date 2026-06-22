@@ -70,14 +70,14 @@ This principle has direct consequences:
 
 ### 2.2 Non-Crypto UX — The Invisible Blockchain
 
-PANGEA is a blockchain-powered platform that most users will never realize uses blockchain. This is by design. The moment a donor feels they have opened a crypto exchange, PANGEA has failed.
+PANGEA is a blockchain-powered platform that most users will never realize uses blockchain. This is by design.
 
 The donation flow is built around a single **Donate** button with two options:
 
 | Option | User Experience | Under the hood |
 |---|---|---|
 | **A — Connect Wallet** | Crypto-native users connect MetaMask or any ERC-4337 smart account | Standard Web3 flow via Wagmi/Viem. Gas optionally sponsored by PANGEA Paymaster. |
-| **B — Pay with Card** | Non-crypto users enter card details as on any e-commerce site | Ramp Network converts fiat to USDC. Gasless relay submits UserOperation. Recipient receives USDC. The words "blockchain", "wallet", and "gas" never appear on screen. |
+| **B — Donate with Card** | Non-crypto users enter card details as on any e-commerce site | Ramp Network converts fiat to USDC. Gasless relay submits UserOperation. Recipient receives USDC. The words "blockchain", "wallet", and "gas" never appear in this option. |
 
 ### 2.3 Authentication — Google OAuth
 
@@ -90,11 +90,11 @@ PANGEA uses Google OAuth exclusively for email-based Account Abstraction login. 
 
 ### 2.4 Path of the Donation
 
-Every donation is accompanied by a real-time five-stage tracker showing the donor exactly where their contribution is at every moment — from payment confirmation to recipient impact acknowledgement.
+Every donation is accompanied by a real-time five-stage tracker showing the donor exactly where their contribution is at every moment — from donation confirmation to recipient impact acknowledgement.
 
 | Stage | Name | Description |
 |---|---|---|
-| 1 | Donation initiated | Donor confirms payment. Fiat converted to USDC if card. Google OAuth session verified. |
+| 1 | Donation initiated | Donor confirms donation. Fiat converted to USDC if card. Google OAuth session verified. |
 | 2 | Smart contract executed | `PangeaDonation.sol` processes the transfer. `DonationSent` event emitted on-chain. |
 | 3 | Funds arriving at recipient | USDC transferred directly from donor wallet to recipient wallet. No intermediary custody. |
 | 4 | Recipient notified | Push notification dispatched via Firebase Cloud Messaging, triggered by on-chain event. |
@@ -151,7 +151,7 @@ The Python backend runs a persistent WebSocket connection to an Alchemy node on 
 
 ### 4.4 Card Payment Flow — Fiat to USDC
 
-For donors paying by card (Option B), the flow is:
+For donors donating by card (Option B), the flow is:
 
 1. **Donor** clicks "Pay with Card" — sees a standard card form, no crypto visible
 2. **Ramp Network** charges the card and purchases USDC from its liquidity pool
@@ -638,10 +638,8 @@ This document is a technical white paper for informational purposes and does not
 
 **PANGEA — Making Every Donation Count**
 
-contact@pangea.finance · docs.pangea.finance
-
 [pangea-contracts](https://github.com/Pangean1/pangea-contracts) · [pangea-backend](https://github.com/Pangean1/pangea-backend)
 
-*© 2026 PANGEA Project — MIT License*
+*© 2026 PANGEA — MIT License*
 
 </div>
