@@ -116,7 +116,7 @@ The global humanitarian aid sector moves approximately $31 billion annually (OCH
 | Settlement delays | 3–7 business days for wire transfers | Near-instant blockchain confirmation |
 | Opacity of fund flow | Donors cannot verify end-use | Immutable on-chain transaction record |
 | Geographic restrictions | Banking exclusion for many recipients | Any smartphone + internet = access |
-| Currency volatility risk | USD-denominated aid loses value in transit | Stablecoin transfers preserve value |
+| Currency volatility risk | Multi-step currency conversion and settlement delays erode aid value | Stablecoin transfers preserve value |
 | Custodial risk | Platform insolvency can freeze funds | Non-custodial; user controls keys |
 
 ### 3.2 The Case for Blockchain
