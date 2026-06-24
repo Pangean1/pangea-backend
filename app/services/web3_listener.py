@@ -1,8 +1,8 @@
 """
 Web3 event listener for PangeaDonation contract.
 
-Polls the Polygon Amoy RPC for DonationSent events, persists new donations
-to the database, updates the campaign's total_raised_wei, and dispatches
+Polls the Polygon Amoy RPC for CampaignCreated and DonationSent events,
+persists new campaigns and donations to the database, and dispatches
 Firebase push notifications to the recipient's registered device(s).
 
 The listener runs as a background asyncio task started during FastAPI lifespan.
@@ -35,6 +35,39 @@ def _load_contract(w3: Web3):
         abi = json.load(f)
     address = Web3.to_checksum_address(settings.contract_address)
     return w3.eth.contract(address=address, abi=abi)
+
+
+async def _handle_campaign_event(event: dict) -> None:
+    """Upsert a CampaignCreated event into the campaigns table."""
+    args = event["args"]
+    on_chain_id: int = args["campaignId"]
+    recipient: str = args["recipient"].lower()
+    name: str = args["name"]
+
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(Campaign).where(Campaign.on_chain_id == on_chain_id)
+        )
+        campaign: Campaign | None = result.scalar_one_or_none()
+
+        if campaign:
+            campaign.recipient_address = recipient
+            campaign.name = name
+            logger.info("Updated campaign %d (%s) from on-chain event.", on_chain_id, name)
+        else:
+            campaign = Campaign(
+                on_chain_id=on_chain_id,
+                recipient_address=recipient,
+                name=name,
+                description="",
+                goal_wei="0",
+                total_raised_wei="0",
+                active=True,
+            )
+            session.add(campaign)
+            logger.info("Created campaign %d (%s) from on-chain event.", on_chain_id, name)
+
+        await session.commit()
 
 
 async def _handle_donation_event(event: dict) -> None:
@@ -144,29 +177,87 @@ async def _handle_donation_event(event: dict) -> None:
 
 
 async def _scan_block_range(contract, from_block: int, to_block: int) -> None:
-    """Fetch and handle all DonationSent events in [from_block, to_block]."""
+    """Fetch and handle all CampaignCreated and DonationSent events in [from_block, to_block]."""
     try:
-        events = contract.events.DonationSent.get_logs(
+        campaign_events = contract.events.CampaignCreated.get_logs(
             from_block=from_block,
             to_block=to_block,
         )
-        for event in events:
+        for event in campaign_events:
+            try:
+                await _handle_campaign_event(event)
+            except Exception as exc:
+                logger.error("Error handling CampaignCreated event %s: %s", event, exc)
+    except Exception as exc:
+        logger.error("Error fetching CampaignCreated logs [%d-%d]: %s", from_block, to_block, exc)
+
+    try:
+        donation_events = contract.events.DonationSent.get_logs(
+            from_block=from_block,
+            to_block=to_block,
+        )
+        for event in donation_events:
             try:
                 await _handle_donation_event(event)
             except Exception as exc:
-                logger.error("Error handling event %s: %s", event, exc)
+                logger.error("Error handling DonationSent event %s: %s", event, exc)
     except Exception as exc:
-        logger.error("Error fetching logs [%d-%d]: %s", from_block, to_block, exc)
+        logger.error("Error fetching DonationSent logs [%d-%d]: %s", from_block, to_block, exc)
+
+
+async def _backfill_campaigns(contract) -> None:
+    """Read all campaigns directly from the contract and upsert into the DB."""
+    try:
+        count: int = contract.functions.campaignCount().call()
+    except Exception as exc:
+        logger.error("Could not read campaignCount: %s", exc)
+        return
+
+    logger.info("Syncing %d on-chain campaigns…", count)
+    synced = 0
+    for on_chain_id in range(1, count + 1):
+        try:
+            data = contract.functions.campaigns(on_chain_id).call()
+            # campaigns() returns (id, recipient, name, description, active, totalRaised)
+            _, recipient, name, description, active, total_raised = data
+            async with AsyncSessionLocal() as session:
+                result = await session.execute(
+                    select(Campaign).where(Campaign.on_chain_id == on_chain_id)
+                )
+                campaign: Campaign | None = result.scalar_one_or_none()
+                if campaign:
+                    campaign.recipient_address = recipient.lower()
+                    campaign.name = name
+                    campaign.description = description
+                    campaign.active = active
+                    campaign.total_raised_wei = str(total_raised)
+                else:
+                    campaign = Campaign(
+                        on_chain_id=on_chain_id,
+                        recipient_address=recipient.lower(),
+                        name=name,
+                        description=description,
+                        active=active,
+                        total_raised_wei=str(total_raised),
+                        goal_wei="0",
+                    )
+                    session.add(campaign)
+                await session.commit()
+            synced += 1
+            logger.info("Synced campaign %d: %s", on_chain_id, name)
+        except Exception as exc:
+            logger.error("Error syncing campaign %d: %s", on_chain_id, exc)
+
+    logger.info("Campaign sync complete — %d/%d campaigns synced.", synced, count)
 
 
 async def run_listener() -> None:
     """
-    Main listener loop. Polls for new DonationSent events every
-    `settings.listener_poll_interval` seconds.
+    Main listener loop. Polls for new CampaignCreated and DonationSent events
+    every `settings.listener_poll_interval` seconds.
 
-    Uses HTTP polling (get_logs) which works with any RPC including
-    Alchemy/Infura. Switch to a WebSocket provider + event filters for
-    real-time delivery if needed.
+    On startup, backfills all CampaignCreated events from the deployment block
+    so the database stays in sync with the chain.
     """
     if not settings.contract_address:
         logger.warning("CONTRACT_ADDRESS not set — Web3 listener will not start.")
@@ -178,11 +269,19 @@ async def run_listener() -> None:
         settings.contract_address,
     )
 
-    w3 = Web3(Web3.HTTPProvider(settings.polygon_rpc_url))
-    contract = _load_contract(w3)
+    try:
+        w3 = Web3(Web3.HTTPProvider(settings.polygon_rpc_url))
+        contract = _load_contract(w3)
 
-    last_block = max(settings.listener_start_block, w3.eth.block_number - 1)
-    logger.info("Listener starting from block %d", last_block)
+        current_block = w3.eth.block_number
+        logger.info("Syncing campaigns from contract…")
+        await _backfill_campaigns(contract)
+    except Exception as exc:
+        logger.error("Listener init error: %s", exc, exc_info=True)
+        return
+
+    last_block = current_block
+    logger.info("Listener polling from block %d", last_block)
 
     while True:
         try:

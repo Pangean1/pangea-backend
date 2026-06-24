@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     # How often the polling loop sleeps between scans (seconds)
     listener_poll_interval: int = 5
 
+    # ── Auth ─────────────────────────────────────────────────────────────────
+    jwt_secret: str = "change-me-in-production"
+    jwt_expiry_days: int = 30
+
     # ── Firebase ─────────────────────────────────────────────────────────────
     # Path to Firebase service-account credentials JSON
     firebase_credentials_path: str = "firebase_credentials.json"

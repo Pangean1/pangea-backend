@@ -18,6 +18,9 @@ web3>=7.0.0
 # Firebase push notifications
 firebase-admin>=6.5.0
 
+# Auth
+PyJWT>=2.8.0
+
 # Utilities
 python-dotenv>=1.0.0
 httpx>=0.27.0

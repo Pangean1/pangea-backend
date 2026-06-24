@@ -1,6 +1,7 @@
 # Environment — never commit real credentials
 .env
 firebase_credentials.json
+firebase-credentials.json
 
 # Python
 __pycache__/

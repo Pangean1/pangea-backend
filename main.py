@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import engine, Base
-from app.routes import users, campaigns, donations
+from app.routes import users, campaigns, donations, auth
 from app.services.web3_listener import run_listener
 from config import settings
 
@@ -65,6 +65,7 @@ app.add_middleware(
 )
 
 # ── Routers ───────────────────────────────────────────────────────────────────
+app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(campaigns.router)
 app.include_router(donations.router)

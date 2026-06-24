@@ -23,8 +23,11 @@ class Campaign(Base):
     name: Mapped[str] = mapped_column(String(256), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    # total_raised_wei: stored as string to avoid integer overflow for large uint256 values
+    # total_raised_wei / goal_wei: stored as strings to avoid integer overflow for large uint256 values
     total_raised_wei: Mapped[str] = mapped_column(
+        String(78), nullable=False, default="0"
+    )
+    goal_wei: Mapped[str] = mapped_column(
         String(78), nullable=False, default="0"
     )
     created_at: Mapped[datetime] = mapped_column(

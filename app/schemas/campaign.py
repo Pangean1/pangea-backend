@@ -12,6 +12,7 @@ class CampaignResponse(BaseModel):
     description: str
     active: bool
     total_raised_wei: str
+    goal_wei: str
     created_at: datetime
     updated_at: datetime
 
