@@ -11,9 +11,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.database import engine, Base
-from app.routes import users, campaigns, donations, auth
+from app.routes import users, campaigns, donations, auth, impact_updates
 from app.services.web3_listener import run_listener
 from config import settings
 
@@ -29,6 +30,10 @@ async def lifespan(app: FastAPI):
     # ── Startup ───────────────────────────────────────────────────────────
     logger.info("Creating database tables (if not exist)…")
     async with engine.begin() as conn:
+        # Allow wallet_address to be null (email OTP users don't have one at login time)
+        await conn.execute(
+            text("ALTER TABLE users ALTER COLUMN wallet_address DROP NOT NULL")
+        )
         await conn.run_sync(Base.metadata.create_all)
 
     logger.info("Starting Web3 event listener…")
@@ -69,6 +74,7 @@ app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(campaigns.router)
 app.include_router(donations.router)
+app.include_router(impact_updates.router)
 
 
 @app.get("/health", tags=["meta"])

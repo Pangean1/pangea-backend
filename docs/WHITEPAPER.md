@@ -339,6 +339,20 @@ systemctl restart pangea-backend       # restart after config changes
 systemctl stop pangea-backend          # stop manually
 ```
 
+### 6.6 Media Storage — IPFS via Pinata
+
+Beneficiary impact updates (§2.4, stage 5) may include a photo or video. This media is pinned to IPFS through [Pinata](https://pinata.cloud)'s REST API rather than stored on the backend VM's local disk, which has limited free space and no CDN in front of it. Pinata gives durable, publicly verifiable hosting for a fixed monthly cost, with no server-side storage growth over time.
+
+**Flow:**
+1. The beneficiary's app uploads the photo/video, along with their update message, to the backend (`POST /campaigns/{id}/impact-updates`, multipart form) — the phone never talks to IPFS or Pinata directly.
+2. The backend (`app/services/pinata_service.py`) forwards the file to Pinata's `pinFileToIPFS` endpoint using a single API key (`PINATA_JWT` in `.env`).
+3. Pinata returns a content hash (CID); the backend stores a ready-to-use public gateway URL (`https://gateway.pinata.cloud/ipfs/<CID>`) in the `impact_updates.media_url` column.
+4. The donor app renders that URL directly as an image.
+
+**Current scope note:** the impact update record itself (message, media URL, timestamp) lives only in the backend's Postgres database — it is not yet anchored on-chain. The "linked on-chain" language in §2.4's stage 5 describes a future enhancement, not the current implementation; today only the donation transactions themselves (§5) are on-chain.
+
+**Notification fan-out:** posting an impact update also notifies every distinct past donor to that campaign (§4.3) — this is the second of two notification triggers currently wired into the event/action pipeline (the first being `donation_received`, fired when a `DonationSent` event is observed). See "Deferred / Postponed / Frozen Features" in `CLAUDE.md` for the current status of push delivery to devices.
+
 ---
 
 ## 7. Account Abstraction — Google OAuth Login

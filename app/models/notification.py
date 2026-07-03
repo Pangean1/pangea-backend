@@ -12,6 +12,7 @@ class NotificationType(str, enum.Enum):
     donation_received = "donation_received"
     campaign_created = "campaign_created"
     campaign_status_changed = "campaign_status_changed"
+    impact_update = "impact_update"
     general = "general"
 
 

@@ -46,3 +46,6 @@ class Campaign(Base):
     notifications: Mapped[list["Notification"]] = relationship(  # noqa: F821
         "Notification", back_populates="campaign"
     )
+    impact_updates: Mapped[list["ImpactUpdate"]] = relationship(  # noqa: F821
+        "ImpactUpdate", back_populates="campaign", cascade="all, delete-orphan"
+    )

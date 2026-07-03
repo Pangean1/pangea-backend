@@ -13,9 +13,9 @@ class User(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True, default=uuid.uuid4, index=True
     )
-    # Ethereum/Polygon wallet address (checksummed, unique)
-    wallet_address: Mapped[str] = mapped_column(
-        String(42), unique=True, index=True, nullable=False
+    # Ethereum/Polygon wallet address — set by frontend after wallet key generation
+    wallet_address: Mapped[str | None] = mapped_column(
+        String(42), unique=True, index=True, nullable=True
     )
     # Firebase Cloud Messaging token for push notifications (nullable — not all users register)
     fcm_token: Mapped[str | None] = mapped_column(String(512), nullable=True)

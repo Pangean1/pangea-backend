@@ -17,6 +17,7 @@ router = APIRouter(tags=["donations"])
 @router.get("/donations", response_model=DonationListResponse)
 async def list_donations(
     donor_address: str | None = None,
+    recipient_address: str | None = None,
     token_address: str | None = None,
     limit: int = 20,
     offset: int = 0,
@@ -25,6 +26,8 @@ async def list_donations(
     query = select(Donation)
     if donor_address:
         query = query.where(Donation.donor_address == donor_address.lower())
+    if recipient_address:
+        query = query.where(Donation.recipient_address == recipient_address.lower())
     if token_address:
         query = query.where(Donation.token_address == token_address.lower())
 

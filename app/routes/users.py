@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 async def register_user(payload: UserCreate, db: AsyncSession = Depends(get_db)):
     """Register a new user or update an existing one (upsert by wallet_address)."""
     result = await db.execute(
-        select(User).where(User.wallet_address == payload.wallet_address.lower())
+        select(User).where(func.lower(User.wallet_address) == payload.wallet_address.lower())
     )
     user = result.scalar_one_or_none()
 
@@ -46,7 +46,7 @@ async def register_user(payload: UserCreate, db: AsyncSession = Depends(get_db))
 @router.get("/{wallet_address}", response_model=UserResponse)
 async def get_user(wallet_address: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(User).where(User.wallet_address == wallet_address.lower())
+        select(User).where(func.lower(User.wallet_address) == wallet_address.lower())
     )
     user = result.scalar_one_or_none()
     if not user:
@@ -59,7 +59,7 @@ async def update_user(
     wallet_address: str, payload: UserUpdate, db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(
-        select(User).where(User.wallet_address == wallet_address.lower())
+        select(User).where(func.lower(User.wallet_address) == wallet_address.lower())
     )
     user = result.scalar_one_or_none()
     if not user:
@@ -86,7 +86,7 @@ async def get_user_notifications(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(User).where(User.wallet_address == wallet_address.lower())
+        select(User).where(func.lower(User.wallet_address) == wallet_address.lower())
     )
     user = result.scalar_one_or_none()
     if not user:
@@ -108,7 +108,7 @@ async def mark_notification_read(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(User).where(User.wallet_address == wallet_address.lower())
+        select(User).where(func.lower(User.wallet_address) == wallet_address.lower())
     )
     user = result.scalar_one_or_none()
     if not user:

@@ -1,5 +1,4 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import AnyUrl
 
 
 class Settings(BaseSettings):
@@ -10,32 +9,40 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # ── Application ──────────────────────────────────────────────────────────
+    # Application
     app_name: str = "PANGEA API"
     app_version: str = "0.1.0"
     debug: bool = False
 
-    # ── Database ─────────────────────────────────────────────────────────────
-    # e.g. postgresql+asyncpg://user:pass@localhost:5432/pangea
+    # Database
     database_url: str = "postgresql+asyncpg://pangea:pangea@localhost:5432/pangea"
 
-    # ── Blockchain ────────────────────────────────────────────────────────────
-    # Polygon Amoy RPC (HTTP or WS)
+    # Blockchain
     polygon_rpc_url: str = "https://rpc-amoy.polygon.technology"
-    # Deployed PangeaDonation contract address
     contract_address: str = ""
-    # Block number to start scanning from (set to deployment block for efficiency)
     listener_start_block: int = 0
-    # How often the polling loop sleeps between scans (seconds)
     listener_poll_interval: int = 5
 
-    # ── Auth ─────────────────────────────────────────────────────────────────
+    # Auth / JWT
     jwt_secret: str = "change-me-in-production"
     jwt_expiry_days: int = 30
 
-    # ── Firebase ─────────────────────────────────────────────────────────────
-    # Path to Firebase service-account credentials JSON
+    # Redis (OTP storage)
+    redis_url: str = "redis://localhost:6379"
+    otp_ttl_seconds: int = 600  # 10 minutes
+
+    # Deployer wallet (signs on-chain campaign creation)
+    deployer_private_key: str = ""
+
+    # Email (Gmail SMTP)
+    gmail_user: str = ""
+    gmail_app_password: str = ""
+
+    # Firebase
     firebase_credentials_path: str = "firebase_credentials.json"
+
+    # Pinata (IPFS pinning for impact update media)
+    pinata_jwt: str = ""
 
 
 settings = Settings()
