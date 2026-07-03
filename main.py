@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.database import engine, Base
-from app.routes import users, campaigns, donations, auth, impact_updates
+from app.routes import users, campaigns, donations, auth, impact_updates, faucet
 from app.services.web3_listener import run_listener
 from config import settings
 
@@ -75,6 +75,7 @@ app.include_router(users.router)
 app.include_router(campaigns.router)
 app.include_router(donations.router)
 app.include_router(impact_updates.router)
+app.include_router(faucet.router)
 
 
 @app.get("/health", tags=["meta"])

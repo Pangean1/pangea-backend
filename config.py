@@ -20,8 +20,13 @@ class Settings(BaseSettings):
     # Blockchain
     polygon_rpc_url: str = "https://rpc-amoy.polygon.technology"
     contract_address: str = ""
+    usdc_address: str = ""
     listener_start_block: int = 0
     listener_poll_interval: int = 5
+
+    # "development" enables the testnet USDC faucet (see routes/faucet.py).
+    # Must be "production" on mainnet.
+    environment: str = "development"
 
     # Auth / JWT
     jwt_secret: str = "change-me-in-production"
