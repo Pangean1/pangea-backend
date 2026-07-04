@@ -25,7 +25,7 @@ event DonationSent(address indexed donor, address indexed recipient, address ind
 - Updating the listener's start block to the new deployment block
 - Re-verifying the new contract on PolygonScan
 
-A smaller, non-blocking partial mitigation is available in the meantime, not yet implemented: the `message` field (currently always sent as `''` — see `app/campaign/[id]/donate.tsx`) could be used to embed a human-readable campaign identifier (e.g. `"#8 Help Ukraine"`) directly in each new donation's log, so at least the *decoded* event is self-describing even though it's not filterable. This is a frontend-only change, no contract redeploy needed.
+A smaller, non-blocking partial mitigation shipped 2026-07-04 (pangea-frontend commit `3bcba0c`): the `message` field, previously always sent as `''`, now carries `"Campaign: <name>"` for every new donation (see `app/campaign/[id]/donate.tsx`). `campaignId` already appears as its own field in the decoded PolygonScan log, right above `message`, so the two together let a viewer read both the numeric id and the campaign name directly off-chain without trusting PANGEA's database — even though `campaignId` still isn't a filterable indexed topic (that part of the gap remains, see above). This only covers donations made from 2026-07-04 onward; donations before that date remain unlabeled in the raw log.
 
 **Effort & Risk:** High. New contract address is a breaking change across backend, frontend, and every previously-registered campaign. Not something to do casually post-mainnet without a clear migration plan.
 
