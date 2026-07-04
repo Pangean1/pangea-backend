@@ -14,6 +14,7 @@
 | v2.0 | March 2026 | Added Section 2: Core Principles — non-profit model, UX strategy, Google OAuth, Path of the Donation |
 | v3.0 | March 2026 | Added Section 10: Sustainability Model — cost structure, four funding pillars, transparency dashboard |
 | v4.0 | March 2026 | Updated Section 9: real GitHub repos, actual package versions, real deployment steps from build session |
+| v5.0 | July 2026 | Replaced Google OAuth (Sections 2.3, 4.2, 7) with email OTP + locally-generated embedded wallet — Google OAuth was abandoned 2026-04-28 after repeated redirect-URI failures in both Expo Go and a real APK build |
 
 ---
 
@@ -25,7 +26,7 @@
 4. [Platform Architecture](#4-platform-architecture)
 5. [Smart Contract Specification](#5-smart-contract-specification)
 6. [Backend Service](#6-backend-service-python--fastapi)
-7. [Account Abstraction — Google OAuth Login](#7-account-abstraction--google-oauth-login)
+7. [Account Abstraction — Email OTP Login](#7-account-abstraction--email-otp-login)
 8. [Testing Strategy](#8-testing-strategy)
 9. [Deployment Guide](#9-deployment-guide)
 10. [Sustainability Model](#10-sustainability-model)
@@ -43,7 +44,7 @@ Built on Polygon PoS with USDC stablecoin transfers, PANGEA provides:
 - Instant, borderless stablecoin transfers directly between wallets
 - Full on-chain auditability of every donation
 - Non-custodial architecture — PANGEA never holds user funds
-- Google OAuth onboarding via ERC-4337 Account Abstraction — no seed phrases required
+- Email OTP onboarding via ERC-4337 Account Abstraction — no seed phrases required
 - Real-time push notifications triggered by on-chain `DonationSent` events
 - Publicly verifiable smart contracts deployed on Polygon PoS
 - **Zero platform fee — 100% of every donation reaches the recipient**
@@ -79,14 +80,16 @@ The donation flow is built around a single **Donate** button with two options:
 | **A — Connect Wallet** | Crypto-native users connect MetaMask or any ERC-4337 smart account | Standard Web3 flow via Wagmi/Viem. Gas optionally sponsored by PANGEA Paymaster. |
 | **B — Donate with Card** | Non-crypto users enter card details as on any e-commerce site | Ramp Network converts fiat to USDC. Gasless relay submits UserOperation. Recipient receives USDC. The words "blockchain", "wallet", and "gas" never appear in this option. |
 
-### 2.3 Authentication — Google OAuth
+### 2.3 Authentication — Email OTP
 
-PANGEA uses Google OAuth exclusively for email-based Account Abstraction login. Google OAuth was chosen over Magic Link for:
+PANGEA authenticates users with a one-time passcode (OTP) sent to their email, issued by PANGEA's own backend rather than a third-party identity provider.
 
-- **Reliability** — no email delivery dependency, no spam filter risk
-- **Familiarity** — "Continue with Google" is universally recognized
-- **Session quality** — longer-lived sessions, less re-authentication friction
-- **Security** — inherited 2FA, phishing protection, and account recovery
+- **User enters email** — no password, no account creation step
+- **Backend sends a 6-digit code** — generated server-side, stored in Redis with a short TTL, delivered via SMTP
+- **User enters the code** — backend verifies it and issues a JWT session token
+- **No redirect URIs, no OAuth consent screen, no native SDK** — the entire flow is plain HTTP calls to PANGEA's own API, which keeps it working reliably inside Expo Go during development as well as in a compiled APK
+
+This replaced an earlier Google OAuth design (see Version History, v5.0). Google OAuth was abandoned after `exp://` and custom-scheme redirect URIs were repeatedly rejected by Google's OAuth flow — a problem that persisted even after compiling a real (non-Expo-Go) APK. Email OTP has no redirect URI to reject, since it never leaves PANGEA's own backend.
 
 ### 2.4 Path of the Donation
 
@@ -94,7 +97,7 @@ Every donation is accompanied by a real-time five-stage tracker showing the dono
 
 | Stage | Name | Description |
 |---|---|---|
-| 1 | Donation initiated | Donor confirms donation. Fiat converted to USDC if card. Google OAuth session verified. |
+| 1 | Donation initiated | Donor confirms donation. Fiat converted to USDC if card. Login session verified. |
 | 2 | Smart contract executed | `PangeaDonation.sol` processes the transfer. `DonationSent` event emitted on-chain. |
 | 3 | Funds arriving at recipient | USDC transferred directly from donor wallet to recipient wallet. No intermediary custody. |
 | 4 | Recipient notified | Push notification dispatched via Firebase Cloud Messaging, triggered by on-chain event. |
@@ -138,7 +141,7 @@ Stablecoins (USDC) eliminate cryptocurrency volatility. Smart contracts replace 
 
 ### 4.2 Non-Custodial Account Abstraction
 
-PANGEA uses ERC-4337 Account Abstraction via the ZeroDev SDK. Users authenticate with Google OAuth — ZeroDev derives a deterministic ECDSA signing key from the OAuth credential and creates a counterfactual smart account at a fixed address. Users never see seed phrases. PANGEA cannot move funds.
+PANGEA uses ERC-4337 Account Abstraction via the ZeroDev SDK. After a user authenticates with email OTP (§2.3), the app locally generates a random ECDSA private key (via `expo-crypto`), stored only in the device's SecureStore and never transmitted anywhere. That key becomes the signer for a ZeroDev Kernel smart account, created deterministically at a fixed on-chain address. Users never see the private key or a seed phrase, and PANGEA's backend never has access to it — it exists only on the user's device. PANGEA cannot move funds.
 
 ### 4.3 Event-Driven Notification Architecture
 
@@ -355,61 +358,75 @@ Beneficiary impact updates (§2.4, stage 5) may include a photo or video. This m
 
 ---
 
-## 7. Account Abstraction — Google OAuth Login
+## 7. Account Abstraction — Email OTP Login
 
 ### 7.1 ERC-4337 Flow
 
 | Step | Description |
 |---|---|
-| 1. Login | User authenticates with Google OAuth |
-| 2. Key derivation | ZeroDev SDK derives a deterministic ECDSA key from the OAuth session |
-| 3. Smart account | Counterfactual ERC-4337 smart account created at a fixed address |
-| 4. UserOperation | Donate action encoded as a UserOperation (not a standard tx) |
-| 5. Bundler | Alchemy / Pimlico Bundler submits UserOperation to the mempool |
-| 6. EntryPoint | ERC-4337 EntryPoint validates and executes the operation on-chain |
-| 7. Event | `PangeaDonation` emits `DonationSent` — backend listener fires push notification |
+| 1. Login | User enters their email; backend emails a 6-digit OTP and the user enters it back into the app |
+| 2. Session | Backend verifies the code and returns a JWT, stored in the device's SecureStore |
+| 3. Key generation | On first login, the app generates a random ECDSA private key on-device (`expo-crypto`) and stores it in SecureStore, scoped to that email — never sent to the backend |
+| 4. Smart account | ZeroDev derives a counterfactual ERC-4337 Kernel smart account from that key, at a fixed address |
+| 5. UserOperation | Donate action encoded as a UserOperation (not a standard tx) |
+| 6. Bundler | ZeroDev's bundler submits the UserOperation to the mempool |
+| 7. EntryPoint | ERC-4337 EntryPoint validates and executes the operation on-chain |
+| 8. Event | `PangeaDonation` emits `DonationSent` — backend listener fires push notification |
 
-### 7.2 Frontend Integration (React/TypeScript)
+### 7.2 Frontend Integration (React Native/TypeScript)
+
+Simplified from the actual implementation (`lib/auth.ts`, `lib/zerodev.ts`):
 
 ```typescript
-// hooks/usePangeaDonation.ts
-import { createKernelAccount, createKernelAccountClient } from '@zerodev/sdk'
-import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator'
-import { encodeFunctionData, parseUnits } from 'viem'
+// lib/auth.ts — email OTP + on-device wallet key
+export async function sendCode(email: string): Promise<void> {
+  await fetch(`${API}/auth/send-code`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+}
 
-export function usePangeaDonation() {
-  const donate = async ({ recipient, amountUSDC, campaignId, message }) => {
+export async function verifyCode(email: string, code: string, walletAddress: string | null) {
+  const res = await fetch(`${API}/auth/verify-code`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code, wallet_address: walletAddress }),
+  })
+  const data = await res.json()
+  return { token: data.token, user: { userId: data.user_id, email: data.email, walletAddress: data.wallet_address } }
+}
 
-    // Approve USDC spending
-    const approveData = encodeFunctionData({
-      abi: ERC20_ABI,
-      functionName: 'approve',
-      args: [PANGEA_CONTRACT_ADDRESS, parseUnits(amountUSDC, 6)]
-    })
-
-    // Encode donate() call
-    const donateData = encodeFunctionData({
-      abi: PANGEA_ABI,
-      functionName: 'donate',
-      args: [recipient, USDC_ADDRESS, parseUnits(amountUSDC, 6), campaignId, message]
-    })
-
-    // Batch both calls in one gasless UserOperation
-    const userOpHash = await kernelClient.sendUserOperation({
-      userOperation: {
-        callData: await account.encodeCallData([
-          { to: USDC_ADDRESS,            value: 0n, data: approveData },
-          { to: PANGEA_CONTRACT_ADDRESS, value: 0n, data: donateData },
-        ])
-      },
-      middleware: { sponsorUserOperation: paymasterClient.sponsorUserOperation }
-    })
-
-    return userOpHash
+export async function getOrCreateWallet(email: string) {
+  const key = walletKeyFor(email) // SecureStore key scoped per email
+  let privateKey = await SecureStore.getItemAsync(key)
+  if (!privateKey) {
+    const bytes = await Crypto.getRandomBytesAsync(32)
+    privateKey = '0x' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
+    await SecureStore.setItemAsync(key, privateKey)
   }
-  return { donate }
+  const { address } = await getSmartAccountClient(privateKey)
+  return { privateKey, address }
 }
 ```
+
+```typescript
+// lib/zerodev.ts — ERC-4337 Kernel smart account from the on-device key
+import { createKernelAccount, createKernelAccountClient, createZeroDevPaymasterClient } from '@zerodev/sdk'
+import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator'
+import { privateKeyToAccount } from 'viem/accounts'
+
+export async function getSmartAccountClient(privateKey: string) {
+  const signer = privateKeyToAccount(privateKey as `0x${string}`)
+  const ecdsaValidator = await signerToEcdsaValidator(publicClient, { signer, entryPoint, kernelVersion: KERNEL_V3_1 })
+  const account = await createKernelAccount(publicClient, { plugins: { sudo: ecdsaValidator }, entryPoint, kernelVersion: KERNEL_V3_1 })
+  const paymasterClient = createZeroDevPaymasterClient({ chain: polygonAmoy, transport: http(PAYMASTER_URL) })
+  const kernelClient = createKernelAccountClient({ account, chain: polygonAmoy, bundlerTransport: http(BUNDLER_URL), paymaster: paymasterClient })
+  return { kernelClient, address: account.address as string }
+}
+```
+
+The donation itself (approve + donate batched into one gasless UserOperation) is unchanged from the original design — only how the signing key is obtained (§7.1, steps 1–3) changed.
 
 ---
 
