@@ -25,7 +25,7 @@ event DonationSent(address indexed donor, address indexed recipient, address ind
 - Updating the listener's start block to the new deployment block
 - Re-verifying the new contract on PolygonScan
 
-A smaller, non-blocking partial mitigation already shipped pre-Production: the `message` field (previously always sent as `''`) is now used to embed a human-readable campaign identifier directly in each new donation's log, so at least the *decoded* event is self-describing even though it's not filterable. See commit history / session notes for when this landed.
+A smaller, non-blocking partial mitigation is available in the meantime, not yet implemented: the `message` field (currently always sent as `''` — see `app/campaign/[id]/donate.tsx`) could be used to embed a human-readable campaign identifier (e.g. `"#8 Help Ukraine"`) directly in each new donation's log, so at least the *decoded* event is self-describing even though it's not filterable. This is a frontend-only change, no contract redeploy needed.
 
 **Effort & Risk:** High. New contract address is a breaking change across backend, frontend, and every previously-registered campaign. Not something to do casually post-mainnet without a clear migration plan.
 
