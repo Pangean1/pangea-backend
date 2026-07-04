@@ -23,7 +23,8 @@ PANGEA lets donors send ERC-20 tokens directly to verified humanitarian campaign
 8. [Systemd Service](#systemd-service)
 9. [Database Schema](#database-schema)
 10. [Package Versions](#package-versions)
-11. [License](#license)
+11. [Roadmap](#roadmap)
+12. [License](#license)
 
 ---
 
@@ -394,6 +395,14 @@ Key events and functions used by this backend:
 | `CampaignCreated` | event | Emitted when a new campaign is registered on chain |
 | `campaignCount()` | view | Returns total number of campaigns (used by `/campaigns/sync`) |
 | `campaigns(uint256)` | view | Returns campaign struct by ID |
+
+---
+
+## Roadmap
+
+### Production Stage
+
+Changes intentionally deferred until PANGEA reaches its Production stage (post-mainnet, once real institutional/grant engagement exists) are tracked in [`docs/PRODUCTION_STAGE_CHANGES.md`](docs/PRODUCTION_STAGE_CHANGES.md).
 
 ---
 
