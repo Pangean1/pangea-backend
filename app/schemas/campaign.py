@@ -3,6 +3,8 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
+from app.models.impact_update import MediaType
+
 
 class CampaignResponse(BaseModel):
     id: uuid.UUID
@@ -13,6 +15,8 @@ class CampaignResponse(BaseModel):
     active: bool
     total_raised_wei: str
     goal_wei: str
+    media_url: str | None
+    media_type: MediaType | None
     created_at: datetime
     updated_at: datetime
 

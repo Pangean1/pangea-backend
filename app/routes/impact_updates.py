@@ -23,6 +23,7 @@ router = APIRouter(tags=["impact-updates"])
 @router.get("/impact-updates", response_model=ImpactUpdateListResponse)
 async def list_impact_updates(
     donor_address: str | None = None,
+    recipient_address: str | None = None,
     limit: int = 20,
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
@@ -33,6 +34,11 @@ async def list_impact_updates(
             Donation.donor_address == donor_address.lower(),
             Donation.campaign_id.isnot(None),
         ).distinct()
+        query = query.where(ImpactUpdate.campaign_id.in_(campaign_ids))
+    if recipient_address:
+        campaign_ids = select(Campaign.id).where(
+            Campaign.recipient_address == recipient_address.lower()
+        )
         query = query.where(ImpactUpdate.campaign_id.in_(campaign_ids))
 
     total_result = await db.execute(select(func.count()).select_from(query.subquery()))

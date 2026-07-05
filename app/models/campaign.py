@@ -2,9 +2,11 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import String, Boolean, BigInteger, DateTime, func, Text
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.models.impact_update import MediaType
 
 
 class Campaign(Base):
@@ -30,6 +32,8 @@ class Campaign(Base):
     goal_wei: Mapped[str] = mapped_column(
         String(78), nullable=False, default="0"
     )
+    media_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    media_type: Mapped[MediaType | None] = mapped_column(SAEnum(MediaType), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

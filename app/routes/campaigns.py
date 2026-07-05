@@ -4,8 +4,7 @@ import logging
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from web3 import Web3
@@ -13,7 +12,9 @@ from web3 import Web3
 from app.auth_deps import get_wallet as _get_wallet
 from app.database import get_db
 from app.models.campaign import Campaign
+from app.models.impact_update import MediaType
 from app.schemas.campaign import CampaignResponse, CampaignListResponse
+from app.services.pinata_service import upload_to_ipfs
 from config import settings
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
@@ -64,12 +65,6 @@ async def get_campaign(campaign_id: uuid.UUID, db: AsyncSession = Depends(get_db
 
 # ─── Create campaign ──────────────────────────────────────────────────────────
 
-class CampaignCreate(BaseModel):
-    name: str
-    description: str
-    goal_usd: str
-
-
 def _create_campaign_on_chain(recipient: str, name: str, description: str) -> int:
     """Signs and sends createCampaign() on-chain. Returns the new on_chain_id."""
     if not settings.deployer_private_key:
@@ -107,30 +102,33 @@ def _create_campaign_on_chain(recipient: str, name: str, description: str) -> in
 
 @router.post("", response_model=CampaignResponse, status_code=status.HTTP_201_CREATED)
 async def create_campaign(
-    payload: CampaignCreate,
+    name: str = Form(...),
+    description: str = Form(...),
+    goal_usd: str = Form(...),
+    media: UploadFile | None = File(None),
     auth: tuple[uuid.UUID, str] = Depends(_get_wallet),
     db: AsyncSession = Depends(get_db),
 ):
-    if not payload.name.strip():
+    if not name.strip():
         raise HTTPException(status_code=400, detail="Name is required")
-    if not payload.description.strip():
+    if not description.strip():
         raise HTTPException(status_code=400, detail="Description is required")
     try:
-        goal_usd = float(payload.goal_usd)
-        if goal_usd <= 0:
+        goal_usd_value = float(goal_usd)
+        if goal_usd_value <= 0:
             raise ValueError
     except ValueError:
         raise HTTPException(status_code=400, detail="Goal must be a positive number")
 
     _, wallet_address = auth
-    goal_wei = str(int(goal_usd * 1_000_000))
+    goal_wei = str(int(goal_usd_value * 1_000_000))
 
     try:
         on_chain_id = await asyncio.to_thread(
             _create_campaign_on_chain,
             wallet_address,
-            payload.name.strip(),
-            payload.description.strip(),
+            name.strip(),
+            description.strip(),
         )
     except RuntimeError as e:
         logger.error("On-chain campaign creation failed: %s", e)
@@ -139,20 +137,73 @@ async def create_campaign(
         logger.error("Unexpected error creating campaign: %s", e)
         raise HTTPException(status_code=502, detail="Could not create campaign on-chain.")
 
+    media_url: str | None = None
+    media_type: MediaType | None = None
+    if media is not None:
+        media_url = await upload_to_ipfs(media)
+        media_type = MediaType.video if (media.content_type or "").startswith("video") else MediaType.image
+
     campaign = Campaign(
         on_chain_id=on_chain_id,
         recipient_address=wallet_address.lower(),
-        name=payload.name.strip(),
-        description=payload.description.strip(),
+        name=name.strip(),
+        description=description.strip(),
         active=True,
         total_raised_wei="0",
         goal_wei=goal_wei,
+        media_url=media_url,
+        media_type=media_type,
     )
     db.add(campaign)
     await db.commit()
     await db.refresh(campaign)
 
     logger.info("Campaign %d created on-chain and saved to DB.", on_chain_id)
+    return campaign
+
+
+# ─── Campaign media (add/replace/remove on an existing campaign) ─────────────
+
+@router.put("/{campaign_id}/media", response_model=CampaignResponse)
+async def set_campaign_media(
+    campaign_id: uuid.UUID,
+    media: UploadFile = File(...),
+    auth: tuple[uuid.UUID, str] = Depends(_get_wallet),
+    db: AsyncSession = Depends(get_db),
+):
+    _, wallet_address = auth
+    campaign = await db.get(Campaign, campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    if campaign.recipient_address != wallet_address.lower():
+        raise HTTPException(status_code=403, detail="You can only edit your own campaign.")
+
+    campaign.media_url = await upload_to_ipfs(media)
+    campaign.media_type = MediaType.video if (media.content_type or "").startswith("video") else MediaType.image
+
+    await db.commit()
+    await db.refresh(campaign)
+    return campaign
+
+
+@router.delete("/{campaign_id}/media", response_model=CampaignResponse)
+async def remove_campaign_media(
+    campaign_id: uuid.UUID,
+    auth: tuple[uuid.UUID, str] = Depends(_get_wallet),
+    db: AsyncSession = Depends(get_db),
+):
+    _, wallet_address = auth
+    campaign = await db.get(Campaign, campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    if campaign.recipient_address != wallet_address.lower():
+        raise HTTPException(status_code=403, detail="You can only edit your own campaign.")
+
+    campaign.media_url = None
+    campaign.media_type = None
+
+    await db.commit()
+    await db.refresh(campaign)
     return campaign
 
 
