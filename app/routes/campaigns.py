@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import uuid
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -13,7 +14,12 @@ from app.auth_deps import get_wallet as _get_wallet
 from app.database import get_db
 from app.models.campaign import Campaign
 from app.models.impact_update import MediaType
-from app.schemas.campaign import CampaignResponse, CampaignListResponse
+from app.schemas.campaign import (
+    CampaignResponse,
+    CampaignListResponse,
+    CampaignUpdateRequest,
+    CampaignStatusRequest,
+)
 from app.services.pinata_service import upload_to_ipfs
 from config import settings
 
@@ -100,11 +106,42 @@ def _create_campaign_on_chain(recipient: str, name: str, description: str) -> in
     return int(events[0]["args"]["campaignId"])
 
 
+def _set_campaign_active_on_chain(on_chain_id: int, active: bool) -> None:
+    """Signs and sends setCampaignActive() on-chain. Contract owner (deployer) only."""
+    if not settings.deployer_private_key:
+        raise RuntimeError("DEPLOYER_PRIVATE_KEY not configured")
+
+    with open(_ABI_PATH) as f:
+        abi = json.load(f)
+
+    w3 = Web3(Web3.HTTPProvider(settings.polygon_rpc_url))
+    account = w3.eth.account.from_key(settings.deployer_private_key)
+    contract = w3.eth.contract(
+        address=Web3.to_checksum_address(settings.contract_address), abi=abi
+    )
+
+    tx = contract.functions.setCampaignActive(on_chain_id, active).build_transaction({
+        "from": account.address,
+        "nonce": w3.eth.get_transaction_count(account.address),
+        "gas": 150_000,
+        "gasPrice": w3.eth.gas_price,
+        "chainId": 80002,  # Polygon Amoy
+    })
+
+    signed = w3.eth.account.sign_transaction(tx, account.key)
+    tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+    receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=90)
+
+    if receipt.status != 1:
+        raise RuntimeError(f"Transaction reverted: {tx_hash.hex()}")
+
+
 @router.post("", response_model=CampaignResponse, status_code=status.HTTP_201_CREATED)
 async def create_campaign(
     name: str = Form(...),
     description: str = Form(...),
     goal_usd: str = Form(...),
+    deadline: str | None = Form(None),
     media: UploadFile | None = File(None),
     auth: tuple[uuid.UUID, str] = Depends(_get_wallet),
     db: AsyncSession = Depends(get_db),
@@ -119,6 +156,13 @@ async def create_campaign(
             raise ValueError
     except ValueError:
         raise HTTPException(status_code=400, detail="Goal must be a positive number")
+
+    deadline_value: datetime | None = None
+    if deadline:
+        try:
+            deadline_value = datetime.fromisoformat(deadline)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Deadline must be a valid date")
 
     _, wallet_address = auth
     goal_wei = str(int(goal_usd_value * 1_000_000))
@@ -153,6 +197,7 @@ async def create_campaign(
         goal_wei=goal_wei,
         media_url=media_url,
         media_type=media_type,
+        deadline=deadline_value,
     )
     db.add(campaign)
     await db.commit()
@@ -202,6 +247,66 @@ async def remove_campaign_media(
     campaign.media_url = None
     campaign.media_type = None
 
+    await db.commit()
+    await db.refresh(campaign)
+    return campaign
+
+
+# ─── Edit campaign fields (goal_usd, deadline only — name/description are set once on-chain at creation and never editable) ──
+
+@router.put("/{campaign_id}", response_model=CampaignResponse)
+async def update_campaign(
+    campaign_id: uuid.UUID,
+    payload: CampaignUpdateRequest,
+    auth: tuple[uuid.UUID, str] = Depends(_get_wallet),
+    db: AsyncSession = Depends(get_db),
+):
+    _, wallet_address = auth
+    campaign = await db.get(Campaign, campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    if campaign.recipient_address != wallet_address.lower():
+        raise HTTPException(status_code=403, detail="You can only edit your own campaign.")
+
+    if payload.goal_usd is not None:
+        try:
+            goal_usd_value = float(payload.goal_usd)
+            if goal_usd_value <= 0:
+                raise ValueError
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Goal must be a positive number")
+        campaign.goal_wei = str(int(goal_usd_value * 1_000_000))
+    if payload.deadline is not None:
+        campaign.deadline = payload.deadline
+
+    await db.commit()
+    await db.refresh(campaign)
+    return campaign
+
+
+# ─── Deactivate / reactivate campaign ─────────────────────────────────────────
+
+@router.patch("/{campaign_id}/status", response_model=CampaignResponse)
+async def set_campaign_status(
+    campaign_id: uuid.UUID,
+    payload: CampaignStatusRequest,
+    auth: tuple[uuid.UUID, str] = Depends(_get_wallet),
+    db: AsyncSession = Depends(get_db),
+):
+    _, wallet_address = auth
+    campaign = await db.get(Campaign, campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    if campaign.recipient_address != wallet_address.lower():
+        raise HTTPException(status_code=403, detail="You can only edit your own campaign.")
+
+    try:
+        await asyncio.to_thread(_set_campaign_active_on_chain, campaign.on_chain_id, payload.active)
+    except RuntimeError as e:
+        logger.error("On-chain status change failed for campaign %d: %s", campaign.on_chain_id, e)
+        raise HTTPException(status_code=502, detail="Blockchain transaction failed. Please try again.")
+
+    campaign.active = payload.active
     await db.commit()
     await db.refresh(campaign)
     return campaign

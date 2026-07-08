@@ -34,6 +34,7 @@ class Campaign(Base):
     )
     media_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     media_type: Mapped[MediaType | None] = mapped_column(SAEnum(MediaType), nullable=True)
+    deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

@@ -17,6 +17,7 @@ class CampaignResponse(BaseModel):
     goal_wei: str
     media_url: str | None
     media_type: MediaType | None
+    deadline: datetime | None
     created_at: datetime
     updated_at: datetime
 
@@ -26,3 +27,12 @@ class CampaignResponse(BaseModel):
 class CampaignListResponse(BaseModel):
     items: list[CampaignResponse]
     total: int
+
+
+class CampaignUpdateRequest(BaseModel):
+    goal_usd: str | None = None
+    deadline: datetime | None = None
+
+
+class CampaignStatusRequest(BaseModel):
+    active: bool
