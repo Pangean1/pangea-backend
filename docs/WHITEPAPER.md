@@ -77,7 +77,7 @@ The donation flow is built around a single **Donate** button with two options:
 
 | Option | User Experience | Under the hood |
 |---|---|---|
-| **A — Connect Wallet** | Crypto-native users connect MetaMask or any ERC-4337 smart account | Standard Web3 flow via Wagmi/Viem. Gas optionally sponsored by PANGEA Paymaster. |
+| **A — Donate with Wallet** | Crypto-native users connect MetaMask or any ERC-4337 smart account | Standard Web3 flow via Wagmi/Viem. Gas optionally sponsored by PANGEA Paymaster. |
 | **B — Donate with Card** | Non-crypto users enter card details as on any e-commerce site | Ramp Network converts fiat to USDC. Gasless relay submits UserOperation. Recipient receives USDC. The words "blockchain", "wallet", and "gas" never appear in this option. |
 
 ### 2.3 Authentication — Email OTP
