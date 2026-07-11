@@ -75,6 +75,24 @@ class MeResponse(BaseModel):
     wallet_address: str | None
 
 
+def create_token(user: User) -> str:
+    """Issues the one JWT shape every auth method (email OTP, and any future
+    method such as Google OAuth) must produce, so every endpoint gated on
+    `get_wallet()` behaves identically regardless of how the user signed in."""
+    now = datetime.now(timezone.utc)
+    return jwt.encode(
+        {
+            "sub": str(user.id),
+            "email": user.email,
+            "wallet": user.wallet_address,
+            "iat": now,
+            "exp": now + timedelta(days=settings.jwt_expiry_days),
+        },
+        settings.jwt_secret,
+        algorithm="HS256",
+    )
+
+
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.post("/send-code", status_code=200)
@@ -135,7 +153,12 @@ async def verify_code(payload: VerifyCodeRequest, db: AsyncSession = Depends(get
     if user is None:
         user = User(email=email, wallet_address=wallet_address)
         db.add(user)
-    elif wallet_address:
+    elif user.wallet_address is None and wallet_address:
+        # Only ever set this once. A returning device (e.g. a fresh app
+        # install with its own local storage) generates a new local key with
+        # no memory of the previous one — accepting that new address here
+        # would silently reassign an already-registered account's identity
+        # to an empty wallet, orphaning its real on-chain history.
         user.wallet_address = wallet_address
 
     try:
@@ -151,18 +174,7 @@ async def verify_code(payload: VerifyCodeRequest, db: AsyncSession = Depends(get
         )
     await db.refresh(user)
 
-    now = datetime.now(timezone.utc)
-    token = jwt.encode(
-        {
-            "sub": str(user.id),
-            "email": email,
-            "wallet": user.wallet_address,
-            "iat": now,
-            "exp": now + timedelta(days=settings.jwt_expiry_days),
-        },
-        settings.jwt_secret,
-        algorithm="HS256",
-    )
+    token = create_token(user)
 
     return AuthResponse(
         token=token,

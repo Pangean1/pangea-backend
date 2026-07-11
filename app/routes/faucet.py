@@ -2,12 +2,24 @@ import asyncio
 import logging
 import uuid
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from redis.asyncio import Redis
 from web3 import Web3
 
 from app.auth_deps import get_wallet as _get_wallet
 from config import settings
+
+# Caps total successful faucet payouts per day so a wave of new signups
+# (e.g. from a public website) can't drain the deployer's testnet USDC pool
+# faster than it can be manually topped up.
+_DAILY_FAUCET_CAP = 20
+
+
+def _daily_faucet_key() -> str:
+    return f"faucet:count:{datetime.now(timezone.utc).strftime('%Y-%m-%d')}"
 
 router = APIRouter(prefix="/dev", tags=["dev"])
 logger = logging.getLogger(__name__)
@@ -107,6 +119,20 @@ async def fund_wallet(auth: tuple[uuid.UUID, str] = Depends(_get_wallet)):
     threshold_wei = _FUND_THRESHOLD_USDC * 1_000_000
     if balance >= threshold_wei:
         return FundWalletResponse(funded=False, usdc_balance=str(balance))
+
+    redis = Redis.from_url(settings.redis_url, decode_responses=True)
+    try:
+        count = await redis.incr(_daily_faucet_key())
+        if count == 1:
+            await redis.expire(_daily_faucet_key(), 86400)
+    finally:
+        await redis.aclose()
+
+    if count > _DAILY_FAUCET_CAP:
+        raise HTTPException(
+            status_code=429,
+            detail="Faucet's daily test-fund limit has been reached. Please try again tomorrow.",
+        )
 
     top_up_wei = _FUND_TARGET_USDC * 1_000_000 - balance
     try:
