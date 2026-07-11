@@ -32,6 +32,7 @@
 10. [Sustainability Model](#10-sustainability-model)
 11. [Roadmap](#11-roadmap)
 12. [Legal & Compliance](#12-legal--compliance)
+13. [QR to install Pangea's app](#13-qr-to-install-pangeas-app)
 
 ---
 
@@ -662,6 +663,14 @@ PANGEA is a protocol, not a financial institution. The platform does not hold, t
 Users are responsible for compliance with applicable laws in their jurisdictions, including anti-money laundering (AML) and know-your-customer (KYC) requirements. PANGEA reserves the right to implement KYC verification for campaigns above applicable regulatory thresholds.
 
 This document is a technical white paper for informational purposes and does not constitute financial advice or an offer of securities.
+
+---
+
+## 13. QR to install Pangea's app
+
+Scan the QR code below with your smartphone's camera to install the PANGEA app (development/testing build, Polygon Amoy testnet):
+
+[QR to install Pangea's app](PangeaQR.jpg)
 
 ---
 
