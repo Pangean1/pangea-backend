@@ -146,7 +146,7 @@ PANGEA uses ERC-4337 Account Abstraction via the ZeroDev SDK. After a user authe
 
 ### 4.3 Event-Driven Notification Architecture
 
-The Python backend runs a persistent WebSocket connection to an Alchemy node on Polygon PoS, subscribing to the `DonationSent` event emitted by `PangeaDonation.sol`. Upon event detection:
+The Python backend polls the Polygon Amoy RPC (a plain HTTPS endpoint — currently the public `rpc-amoy.polygon.technology`, not a persistent WebSocket, not Alchemy) for the `DonationSent` event emitted by `PangeaDonation.sol`, using `Web3.HTTPProvider` and `get_logs` on a fixed interval (`LISTENER_POLL_INTERVAL`, default a few seconds). Upon detecting a new event:
 
 1. Event decoded — donor, recipient, token, amount, campaignId, message
 2. Recipient's FCM push token retrieved from PostgreSQL
@@ -268,7 +268,7 @@ pangea-backend/
 │   └── models.py            # SQLAlchemy async ORM
 │                            # Tables: users, campaigns, donations, notifications
 ├── services/
-│   ├── event_listener.py    # Web3.py WebSocket event subscription
+│   ├── event_listener.py    # Web3.py HTTP polling loop (get_logs), not a WebSocket subscription
 │   └── notification.py      # Firebase Admin SDK push dispatch
 ├── api/
 │   ├── users.py             # User registration, profile, FCM push token
@@ -491,7 +491,7 @@ Before deploying, you need the following accounts and credentials:
 | Service | URL | What you need |
 |---|---|---|
 | GitHub | github.com | Two repos: pangea-contracts, pangea-backend |
-| Alchemy | alchemy.com | API key + WebSocket URL (Polygon Amoy) |
+| Polygon RPC | rpc-amoy.polygon.technology (or Alchemy/Infura) | HTTPS RPC endpoint for Polygon Amoy — public endpoint works, no account required |
 | MetaMask | metamask.io | Deployer wallet address + private key |
 | ZeroDev | zerodev.app | Project ID |
 | Firebase | console.firebase.google.com | Service account JSON file |
@@ -513,7 +513,7 @@ npm install
 cp .env.example .env
 # Fill in:
 # PRIVATE_KEY              — MetaMask deployer wallet private key (without 0x prefix)
-# POLYGON_AMOY_RPC_URL     — Alchemy HTTPS endpoint for Polygon Amoy
+# POLYGON_AMOY_RPC_URL     — public HTTPS endpoint (e.g. https://rpc-amoy.polygon.technology) or Alchemy/Infura URL
 # POLYGONSCAN_API_KEY      — from polygonscan.com (for contract verification)
 
 # 4. Run full test suite (no network needed)
@@ -544,7 +544,7 @@ cp .env.example .env
 # Fill in:
 # DATABASE_URL             — postgresql+asyncpg://pangea:pangea@localhost:5432/pangea
 # CONTRACT_ADDRESS         — deployed PangeaDonation.sol address
-# ALCHEMY_WS_URL           — wss://polygon-amoy.g.alchemy.com/v2/YOUR_KEY
+# POLYGON_RPC_URL          — https://rpc-amoy.polygon.technology (plain HTTPS; public endpoint, no Alchemy account needed)
 # FIREBASE_CREDENTIALS_PATH — /home/pangea/backend/firebase-credentials.json
 
 # 4. Upload Firebase credentials (from your local machine)
@@ -599,7 +599,7 @@ PANGEA maintains a small operational reserve deployed in Aave v3 or Compound v3 
 - Only USDC or DAI deployed — no volatile assets, no yield chasing
 - Only Aave v3 or Compound v3 — audited, established protocols
 - Reserve target: 6 months of operating costs (~$11,500)
-- At 4% APY on a $20,000 reserve: ~$800/year — covers hosting costs indefinitely
+- At 4% APY on an $11,500 reserve: ~$460/year — a supplemental contribution toward hosting costs (~$3,600/year), not a full offset; the reserve funds runway during a shortfall, while yield alone covers roughly 13% of hosting or ~2% of total annual operating costs (~$23,000/year, §10.1)
 
 **Pillar 3 — Annual "Keep PANGEA Running" Campaign**
 
