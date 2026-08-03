@@ -109,6 +109,33 @@ A smaller, non-blocking partial mitigation shipped 2026-07-04 (pangea-frontend c
 
 ---
 
+## 7. Automated, unified POL gas funding (treasury wallet)
+
+**Situation:** PANGEA currently has two independent gas (POL) sources, funded and monitored manually:
+1. `createCampaign()` / `setCampaignActive()` (`backend/app/routes/campaigns.py`) are signed as plain EOA transactions using `DEPLOYER_PRIVATE_KEY` (wallet `0xea3c014A97c2f0a5302560Cf94A2B1D27b9A9520`). Gas comes from that wallet's own POL balance, topped up manually from `faucet.polygon.technology` (testnet) whenever it runs low.
+2. `donate()` (`frontend/.../lib/zerodev.ts`) is sent as an ERC-4337 UserOperation through a ZeroDev `kernelClient` with a paymaster attached. Gas is sponsored by ZeroDev — currently free under its Sandbox plan, with no PANGEA-controlled wallet involved at all.
+
+Neither path has automated balance monitoring or top-up. On testnet this is a minor inconvenience (an occasional manual faucet visit); in production it isn't viable — nobody should need to watch a balance and manually intervene to keep donations working.
+
+**Cause — why two mechanisms exist, not one:** These weren't designed as one system split in two; they grew from two different requirements. `donate()` needs to be gasless from the *donor's* perspective (core to the "no crypto feel" principle — an email-OTP user with an auto-generated embedded wallet was never going to hold POL to pay gas themselves), which is exactly what ERC-4337 + a paymaster solves. `createCampaign()` / `setCampaignActive()` have no end-user wallet involved at all — they're backend-internal, deployer-signed calls — so the simplest correct implementation was a plain EOA transaction, with no reason to route it through account abstraction.
+
+**Why not just move the admin calls onto ZeroDev too (considered and rejected for now, 2026-08-02):** ZeroDev's SDK (`@zerodev/sdk`, built on viem/permissionless.js) is TypeScript-native. The backend is Python/FastAPI. There is no official ZeroDev/ERC-4337 SDK for Python, so doing this would mean hand-rolling UserOperation construction and direct JSON-RPC calls to ZeroDev's bundler/paymaster endpoints from scratch — a real rewrite, for calls that don't need account abstraction's core benefit (gasless-for-the-signer) in the first place, since the signer is PANGEA's own backend, not an end user. Not worth the engineering cost just to unify the *mechanism*.
+
+**Solution — unify the funding *source*, not the mechanism, via two independently-automatic paths:**
+
+1. **Donation gas (`donate()`):** subscribe to a paid ZeroDev plan (Launch, $69/mo, **post-pay/credit-card billing**). This needs zero PANGEA code — ZeroDev auto-charges the card on file for gas usage every month, the same as any SaaS subscription. Nobody has to "top up" anything; it's continuous by design once a payment method is on file.
+2. **Admin-call gas (`createCampaign()`/`setCampaignActive()`):** a scheduled backend job sends a plain POL transfer from a single PANGEA-controlled **treasury wallet** to the deployer EOA when its balance drops below a threshold. Standard `web3.py` transaction — no new integration needed.
+3. Both draw from the same treasury/payment method, itself funded by grant/institutional money and the tip mechanism's revenue (item #5 above) — gas cost is exactly the platform overhead both are meant to cover.
+4. A low-balance alert (reusing the existing Firebase Admin SDK notification infra in `backend/app/services/firebase_service.py`) fires if the treasury itself is running low — the one thing that can't be automated away is *real money arriving* in the treasury (from grants/tips), which is a business dependency, not a technical one.
+
+**Verified 2026-08-02 — the self-funded-paymaster deposit mechanism, for completeness:** if a self-funded paymaster is used instead of/alongside managed billing (e.g. to avoid ZeroDev's ~80% sponsorship premium at higher volume), funding it is confirmed to be a plain payable `deposit()` call on a known Verifying Paymaster contract — seen directly in ZeroDev's own public reference scripts (`zerodevapp/zerodev-paymaster-scripts` on GitHub: `bun run deposit` sends native currency straight to the paymaster contract's `deposit()` function; `bun run check-balance` calls `getDeposit()`). This is a **plain on-chain transaction, fully scriptable in Python via `web3.py`** — no ZeroDev SDK involved, so the earlier-noted Python/ERC-4337 SDK gap does **not** apply to funding a paymaster, only to *sending UserOperations* (which PANGEA's backend never needs to do). Two things to confirm only if/when this path is actually chosen: (a) **deploying a new self-funded paymaster is restricted to Scale ($399/mo) or Enterprise plans**, not Sandbox/Launch; (b) the exact contract address is per-project/per-deployment, so PANGEA's own address would need pulling from the dashboard at that time — the example addresses above are illustrative, not PANGEA's.
+
+**Effort & Risk:** Medium. Both halves are standard, well-understood engineering — a recurring card-billing subscription (zero code) and a scheduled plain-POL-transfer job (`web3.py`, no SDK gaps on either side). Main risk: the treasury becomes a wallet holding real POL (and indirectly, funder money), so it needs the same key-security rigor as the existing deployer wallet — arguably more, since it would hold a larger standing balance by design.
+
+**Trigger to revisit:** Before mainnet launch, ideally bundled with item #5 (tip mechanism) — the treasury's automation code doesn't strictly depend on the tip mechanism being live (it could start funded manually by Oscar and switch inflows later), but both are part of the same "PANGEA is sustainably and automatically funded" production milestone.
+
+---
+
 ## How to add a new entry
 
 Use the same structure: **Situation** (what's missing/what's the gap), **Cause** (why it wasn't built now / why it's deferred), **Solution** (what the eventual fix looks like), **Effort & Risk**, **Trigger to revisit** (the specific condition that should prompt picking this up — not just "later").
