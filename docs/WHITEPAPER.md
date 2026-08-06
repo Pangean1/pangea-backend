@@ -146,7 +146,7 @@ PANGEA uses ERC-4337 Account Abstraction via the ZeroDev SDK. After a user authe
 
 ### 4.3 Event-Driven Notification Architecture
 
-The Python backend polls the Polygon Amoy RPC (a plain HTTPS endpoint — currently the public `rpc-amoy.polygon.technology`, not a persistent WebSocket, not Alchemy) for the `DonationSent` event emitted by `PangeaDonation.sol`, using `Web3.HTTPProvider` and `get_logs` on a fixed interval (`LISTENER_POLL_INTERVAL`, default a few seconds). Upon detecting a new event:
+The Python backend polls the Polygon Amoy RPC (a plain HTTPS endpoint — currently the public `polygon-amoy-bor-rpc.publicnode.com`, not a persistent WebSocket, not Alchemy) for the `DonationSent` event emitted by `PangeaDonation.sol`, using `Web3.HTTPProvider` and `get_logs` on a fixed interval (`LISTENER_POLL_INTERVAL`, default a few seconds). Upon detecting a new event:
 
 1. Event decoded — donor, recipient, token, amount, campaignId, message
 2. Recipient's FCM push token retrieved from PostgreSQL
@@ -491,7 +491,7 @@ Before deploying, you need the following accounts and credentials:
 | Service | URL | What you need |
 |---|---|---|
 | GitHub | github.com | Two repos: pangea-contracts, pangea-backend |
-| Polygon RPC | rpc-amoy.polygon.technology (or Alchemy/Infura) | HTTPS RPC endpoint for Polygon Amoy — public endpoint works, no account required |
+| Polygon RPC | polygon-amoy-bor-rpc.publicnode.com (or Alchemy/Infura) | HTTPS RPC endpoint for Polygon Amoy — public endpoint works, no account required |
 | MetaMask | metamask.io | Deployer wallet address + private key |
 | ZeroDev | zerodev.app | Project ID |
 | Firebase | console.firebase.google.com | Service account JSON file |
@@ -513,7 +513,7 @@ npm install
 cp .env.example .env
 # Fill in:
 # PRIVATE_KEY              — MetaMask deployer wallet private key (without 0x prefix)
-# POLYGON_AMOY_RPC_URL     — public HTTPS endpoint (e.g. https://rpc-amoy.polygon.technology) or Alchemy/Infura URL
+# POLYGON_AMOY_RPC_URL     — public HTTPS endpoint (e.g. https://polygon-amoy-bor-rpc.publicnode.com) or Alchemy/Infura URL
 # POLYGONSCAN_API_KEY      — from polygonscan.com (for contract verification)
 
 # 4. Run full test suite (no network needed)
@@ -544,7 +544,7 @@ cp .env.example .env
 # Fill in:
 # DATABASE_URL             — postgresql+asyncpg://pangea:pangea@localhost:5432/pangea
 # CONTRACT_ADDRESS         — deployed PangeaDonation.sol address
-# POLYGON_RPC_URL          — https://rpc-amoy.polygon.technology (plain HTTPS; public endpoint, no Alchemy account needed)
+# POLYGON_RPC_URL          — https://polygon-amoy-bor-rpc.publicnode.com (plain HTTPS; public endpoint, no Alchemy account needed)
 # FIREBASE_CREDENTIALS_PATH — /home/pangea/backend/firebase-credentials.json
 
 # 4. Upload Firebase credentials (from your local machine)

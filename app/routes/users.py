@@ -25,15 +25,12 @@ async def register_user(payload: UserCreate, db: AsyncSession = Depends(get_db))
         # Update mutable fields if provided
         if payload.fcm_token is not None:
             user.fcm_token = payload.fcm_token
-        if payload.username is not None:
-            user.username = payload.username
         if payload.email is not None:
             user.email = payload.email
     else:
         user = User(
             wallet_address=payload.wallet_address.lower(),
             fcm_token=payload.fcm_token,
-            username=payload.username,
             email=payload.email,
         )
         db.add(user)
@@ -67,8 +64,6 @@ async def update_user(
 
     if payload.fcm_token is not None:
         user.fcm_token = payload.fcm_token
-    if payload.username is not None:
-        user.username = payload.username
     if payload.email is not None:
         user.email = payload.email
 
