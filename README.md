@@ -124,7 +124,7 @@ The `run_listener()` coroutine starts as a background `asyncio` task during Fast
 | Python | 3.11+ |
 | PostgreSQL | 14+ |
 | pip / venv | latest |
-| A Polygon Amoy RPC URL | e.g. `https://rpc-amoy.polygon.technology` |
+| A Polygon Amoy RPC URL | e.g. `https://polygon-amoy-bor-rpc.publicnode.com` |
 | Firebase service-account JSON | from Firebase console |
 
 ### Installation
@@ -187,7 +187,7 @@ Copy `.env.example` to `.env` and set the values below.
 | `APP_VERSION` | `0.1.0` | Semantic version |
 | `DEBUG` | `false` | Enable SQLAlchemy echo + DEBUG log level |
 | `DATABASE_URL` | `postgresql+asyncpg://pangea:pangea@localhost:5432/pangea` | Async PostgreSQL DSN |
-| `POLYGON_RPC_URL` | `https://rpc-amoy.polygon.technology` | Polygon Amoy (or mainnet) HTTP/WS RPC |
+| `POLYGON_RPC_URL` | `https://polygon-amoy-bor-rpc.publicnode.com` | Polygon Amoy (or mainnet) HTTP/WS RPC |
 | `CONTRACT_ADDRESS` | _(empty)_ | Deployed `PangeaDonation` contract address |
 | `LISTENER_START_BLOCK` | `0` | Block to begin scanning from (set to deployment block) |
 | `LISTENER_POLL_INTERVAL` | `5` | Seconds between RPC polling cycles |
@@ -227,7 +227,7 @@ Interactive API docs are available at:
 |--------|------|-------------|
 | `POST` | `/users` | Register or upsert a user by `wallet_address` |
 | `GET` | `/users/{wallet_address}` | Fetch a user profile |
-| `PUT` | `/users/{wallet_address}` | Update `fcm_token`, `username`, or `email` |
+| `PUT` | `/users/{wallet_address}` | Update `fcm_token` or `email` |
 | `GET` | `/users/{wallet_address}/notifications` | List notifications (`?unread_only`, `?limit`, `?offset`) |
 | `PATCH` | `/users/{wallet_address}/notifications/{notification_id}/read` | Mark a notification as read |
 
@@ -237,7 +237,6 @@ Interactive API docs are available at:
 {
   "wallet_address": "0xAbC...123",
   "fcm_token": "firebase-token",
-  "username": "alice",
   "email": "alice@example.com"
 }
 ```
@@ -310,7 +309,6 @@ sudo journalctl -u pangea-backend -f
 | `id` | UUID | Primary key |
 | `wallet_address` | VARCHAR(42) | Checksummed Ethereum address, unique |
 | `fcm_token` | VARCHAR(512) | Firebase Cloud Messaging token, nullable |
-| `username` | VARCHAR(64) | Optional display name |
 | `email` | VARCHAR(256) | Optional email |
 | `created_at` | TIMESTAMPTZ | Server default |
 | `updated_at` | TIMESTAMPTZ | Server default, updated on write |

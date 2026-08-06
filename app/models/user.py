@@ -19,7 +19,6 @@ class User(Base):
     )
     # Firebase Cloud Messaging token for push notifications (nullable — not all users register)
     fcm_token: Mapped[str | None] = mapped_column(String(512), nullable=True)
-    username: Mapped[str | None] = mapped_column(String(64), nullable=True)
     email: Mapped[str | None] = mapped_column(String(256), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
