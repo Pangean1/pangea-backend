@@ -1,8 +1,8 @@
 # PANGEA — White Paper & Technical Specification
 
-**Version 4.0 — March 2026 — Confidential Draft**
+**Version 4.0 — March 2026**
 
-> 📁 Repositories: [pangea-contracts](https://github.com/Pangean1/pangea-contracts) · [pangea-backend](https://github.com/Pangean1/pangea-backend)
+> 📁 Repositories: [pangea-contracts](https://github.com/Pangean1/pangea-contracts) · [pangea-backend](https://github.com/Pangean1/pangea-backend) · [pangea-frontend](https://github.com/Pangean1/pangea-frontend)
 
 ---
 
@@ -14,7 +14,7 @@
 | v2.0 | March 2026 | Added Section 2: Core Principles — non-profit model, UX strategy, Google OAuth, Path of the Donation |
 | v3.0 | March 2026 | Added Section 10: Sustainability Model — cost structure, four funding pillars, transparency dashboard |
 | v4.0 | March 2026 | Updated Section 9: real GitHub repos, actual package versions, real deployment steps from build session |
-| v5.0 | July 2026 | Replaced Google OAuth (Sections 2.3, 4.2, 7) with email OTP + locally-generated embedded wallet — Google OAuth was abandoned 2026-04-28 after repeated redirect-URI failures in both Expo Go and a real APK build |
+| v5.0 | July 2026 | Replaced Google OAuth (Sections 2.3, 4.2, 7) with email OTP + locally-generated embedded wallet |
 
 ---
 
@@ -50,17 +50,15 @@ Built on Polygon PoS with USDC stablecoin transfers, PANGEA provides:
 - Publicly verifiable smart contracts deployed on Polygon PoS
 - **Zero platform fee — 100% of every donation reaches the recipient**
 
-The smart contract (`PangeaDonation.sol`) and Python backend are both live on GitHub and have passed full test suites. The platform is ready for testnet deployment.
-
 ---
 
 ## 2. Core Principles & Product Definitions
 
-This section formalizes the foundational decisions that define PANGEA as a product and as an organization. These are not technical preferences — they are constitutional commitments that inform every design, business, and engineering choice downstream.
+This section formalizes the foundational decisions that define PANGEA. These are not technical preferences — they are constitutional commitments that inform every design, business, and engineering choice downstream.
 
 ### 2.1 Non-Profit Mission
 
-PANGEA operates as a non-profit project. The organization does not pursue financial gain for itself, its founders, or its operators. The only revenue collected is the strict minimum required to sustain platform infrastructure: server costs, security audits, legal compliance, and a lean core team.
+PANGEA is a non-profit project and does not pursue financial gain for itself, its founders, or its operators. The only revenue collected is the strict minimum required to sustain platform infrastructure: server costs, security audits, legal compliance, and a lean core team.
 
 This principle has direct consequences:
 
@@ -74,12 +72,12 @@ This principle has direct consequences:
 
 PANGEA is a blockchain-powered platform that most users will never realize uses blockchain. This is by design.
 
-The donation flow is built around a single **Donate** button with two options:
+The donation flow is built around two buttons:
 
-| Option | User Experience | Under the hood |
+| Button | User Experience | Under the hood |
 |---|---|---|
-| **A — Donate with Wallet** | Crypto-native users connect MetaMask or any ERC-4337 smart account | Standard Web3 flow via Wagmi/Viem. Gas optionally sponsored by PANGEA Paymaster. |
-| **B — Donate with Card** | Non-crypto users enter card details as on any e-commerce site | Ramp Network converts fiat to USDC. Gasless relay submits UserOperation. Recipient receives USDC. The words "blockchain", "wallet", and "gas" never appear in this option. |
+| **Donate with Wallet** | Crypto-native users connect MetaMask or any ERC-4337 smart account | Standard Web3 flow via Wagmi/Viem. Gas optionally sponsored by PANGEA Paymaster. |
+| **Donate with Card** | Non-crypto users enter card details as on any e-commerce site | Ramp Network converts fiat to USDC. Gasless relay submits UserOperation. Recipient receives USDC. The words "blockchain", "wallet", and "gas" never appear in this flow. |
 
 ### 2.3 Authentication — Email OTP
 
@@ -89,8 +87,6 @@ PANGEA authenticates users with a one-time passcode (OTP) sent to their email, i
 - **Backend sends a 6-digit code** — generated server-side, stored in Redis with a short TTL, delivered via SMTP
 - **User enters the code** — backend verifies it and issues a JWT session token
 - **No redirect URIs, no OAuth consent screen, no native SDK** — the entire flow is plain HTTP calls to PANGEA's own API, which keeps it working reliably inside Expo Go during development as well as in a compiled APK
-
-This replaced an earlier Google OAuth design (see Version History, v5.0). Google OAuth was abandoned after `exp://` and custom-scheme redirect URIs were repeatedly rejected by Google's OAuth flow — a problem that persisted even after compiling a real (non-Expo-Go) APK. Email OTP has no redirect URI to reject, since it never leaves PANGEA's own backend.
 
 ### 2.4 Path of the Donation
 
@@ -103,8 +99,6 @@ Every donation is accompanied by a real-time five-stage tracker showing the dono
 | 3 | Funds arriving at recipient | USDC transferred directly from donor wallet to recipient wallet. No intermediary custody. |
 | 4 | Recipient notified | Push notification dispatched via Firebase Cloud Messaging, triggered by on-chain event. |
 | 5 | Impact confirmed | Recipient posts an acknowledgement — photo, message, or milestone. Stored on IPFS, linked on-chain. |
-
-Technical data (transaction hashes, contract addresses, block numbers) is available on demand by expanding each step, but is never the primary visual. The tracker is the accountability mechanism made visible.
 
 ---
 
@@ -121,7 +115,7 @@ The global humanitarian aid sector moves approximately $31 billion annually (OCH
 | Opacity of fund flow | Donors cannot verify end-use | Immutable on-chain transaction record |
 | Geographic restrictions | Banking exclusion for many recipients | Any smartphone + internet = access |
 | Currency volatility risk | Multi-step currency conversion and settlement delays erode aid value | Stablecoin transfers preserve value |
-| Custodial risk | Platform insolvency can freeze funds | Non-custodial; user controls keys |
+| Custodial risk | Platform insolvency can freeze funds | Non-custodial. User controls keys |
 
 ### 3.2 The Case for Blockchain
 
@@ -155,12 +149,12 @@ The Python backend polls the Polygon Amoy RPC (a plain HTTPS endpoint — curren
 
 ### 4.4 Card Payment Flow — Fiat to USDC
 
-For donors donating by card (Option B), the flow is:
+For donors donating with card the flow is:
 
-1. **Donor** clicks "Pay with Card" — sees a standard card form, no crypto visible
+1. **Donor** clicks "Donate with Card" — sees a standard card form, no crypto visible
 2. **Ramp Network** charges the card and purchases USDC from its liquidity pool
 3. **USDC** delivered to donor's ERC-4337 smart account wallet
-4. **PANGEA Paymaster** sponsors the gas fee — donor pays zero MATIC
+4. **PANGEA Paymaster** sponsors the gas fee — donor pays zero POL
 5. **UserOperation** submitted to Bundler (Alchemy/Pimlico) — `approve()` + `donate()` batched atomically
 6. **PangeaDonation.sol** executes — USDC goes directly donor → recipient, contract holds $0
 7. **DonationSent** event emitted → backend listener → push notification to recipient
@@ -294,13 +288,19 @@ pangea-backend/
 
 ### 6.3 Database Schema
 
-Four tables, auto-created on startup:
+Five tables, auto-created on startup:
 
 ```sql
-users         — id, wallet_addr, email, display_name, push_token, created_at
-campaigns     — id, chain_id, creator_id, recipient_id, title, goal_usdc, raised_usdc, deadline
-donations     — id, tx_hash, block_number, donor_addr, recipient_addr, amount_usdc, message
-notifications — id, user_id, donation_id, title, body, sent_at, read_at
+users           — id, wallet_address, email, fcm_token, created_at, updated_at
+campaigns       — id, on_chain_id, recipient_address, name, description, active,
+                   total_raised_wei, goal_wei, media_url, media_type, deadline,
+                   created_at, updated_at
+donations       — id, tx_hash, log_index, campaign_id, on_chain_campaign_id,
+                   donor_address, recipient_address, token_address, amount_wei,
+                   message, block_timestamp, block_number, created_at
+notifications   — id, user_id, donation_id, campaign_id, type, title, body,
+                   is_read, is_sent, created_at
+impact_updates  — id, campaign_id, message, media_url, media_type, created_at
 ```
 
 ### 6.4 API Endpoints
@@ -427,8 +427,6 @@ export async function getSmartAccountClient(privateKey: string) {
 }
 ```
 
-The donation itself (approve + donate batched into one gasless UserOperation) is unchanged from the original design — only how the signing key is obtained (§7.1, steps 1–3) changed.
-
 ---
 
 ## 8. Testing Strategy
@@ -474,14 +472,6 @@ systemctl start postgresql && systemctl enable postgresql
 # Install Redis
 apt install -y redis-server
 systemctl start redis-server && systemctl enable redis-server
-
-# Install Git
-apt install -y git
-# Verified: git version 2.34.1
-
-# Install Claude Code
-npm install -g @anthropic-ai/claude-code
-# Verified: 2.1.84 (Claude Code)
 ```
 
 ### 9.2 Prerequisites — Web Signups
@@ -490,7 +480,6 @@ Before deploying, you need the following accounts and credentials:
 
 | Service | URL | What you need |
 |---|---|---|
-| GitHub | github.com | Two repos: pangea-contracts, pangea-backend |
 | Polygon RPC | polygon-amoy-bor-rpc.publicnode.com (or Alchemy/Infura) | HTTPS RPC endpoint for Polygon Amoy — public endpoint works, no account required |
 | MetaMask | metamask.io | Deployer wallet address + private key |
 | ZeroDev | zerodev.app | Project ID |
@@ -562,6 +551,39 @@ uvicorn main:app --reload
 systemctl enable pangea-backend
 systemctl start pangea-backend
 ```
+
+### 9.5 Frontend Deployment — Android APK (EAS Build)
+
+The mobile app is distributed as a standalone Android APK (not through Expo Go) via EAS Build.
+
+```bash
+# 1. Clone the PANGEA frontend repo
+git clone https://github.com/Pangean1/pangea-frontend.git
+cd pangea-frontend
+
+# 2. Install dependencies
+npm install
+
+# 3. Log in to EAS (one-time)
+npx eas login
+
+# 4. Push frontend .env values into EAS's own environment-variable store,
+#    scoped to the "preview" build profile — .env is gitignored and is not
+#    uploaded to the cloud build, so this step is required
+npx eas env:create preview --name EXPO_PUBLIC_API_URL --value "..." --visibility plaintext --scope project --non-interactive
+# repeat for each EXPO_PUBLIC_* variable in .env
+
+# 5. Build the APK (uses the "preview" profile in eas.json — distribution: internal)
+npx eas build --platform android --profile preview --non-interactive
+# Build time: around an hour
+# Output: an installable .apk download link on expo.dev
+```
+
+Notes:
+
+- The `preview` profile produces an installable `.apk` directly (`distribution: internal`). A `production` profile targeting the Play Store instead produces a `.aab`, and needs its own separately-scoped EAS environment variables.
+- The backend currently serves plain HTTP (no domain or TLS certificate yet — testnet stage). Android blocks cleartext traffic by default in a compiled build, unlike Expo Go, which does not enforce this. `expo-build-properties` sets `{"android": {"usesCleartextTraffic": true}}` as a testnet-appropriate stopgap — narrow or remove this once the backend has a real domain and HTTPS certificate ahead of mainnet.
+- EAS's native Android autolinking compiles a package's native code into the build as soon as it exists in `package.json`, regardless of whether it is referenced in `app.json`'s `plugins` array or used anywhere in the app's own code. An unused native dependency that is missing its required native configuration (e.g. Firebase Cloud Messaging with no `google-services.json`) can crash the app before any screen renders — invisible in Expo Go, which runs its own generic native container independent of this project's dependencies. Keep `package.json` free of unused native packages.
 
 ---
 
@@ -678,7 +700,7 @@ Scan the QR code below with your smartphone's camera to install the PANGEA app (
 
 **PANGEA — Making Every Donation Count**
 
-[pangea-contracts](https://github.com/Pangean1/pangea-contracts) · [pangea-backend](https://github.com/Pangean1/pangea-backend)
+[pangea-contracts](https://github.com/Pangean1/pangea-contracts) · [pangea-backend](https://github.com/Pangean1/pangea-backend) · [pangea-frontend](https://github.com/Pangean1/pangea-frontend)
 
 *© 2026 PANGEA — MIT License*
 
