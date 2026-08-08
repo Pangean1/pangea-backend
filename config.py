@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # Database
-    database_url: str = "postgresql+asyncpg://pangea:pangea@localhost:5432/pangea"
+    database_url: str
 
     # Blockchain
     polygon_rpc_url: str = "https://rpc-amoy.polygon.technology"
@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     jwt_expiry_days: int = 30
 
     # Redis (OTP storage)
-    redis_url: str = "redis://localhost:6379"
+    redis_url: str
     otp_ttl_seconds: int = 600  # 10 minutes
 
     # Deployer wallet (signs on-chain campaign creation)
