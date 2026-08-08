@@ -355,7 +355,7 @@ Beneficiary impact updates (§2.4, stage 5) may include a photo or video. This m
 
 **Current scope note:** the impact update record itself (message, media URL, timestamp) lives only in the backend's Postgres database — it is not yet anchored on-chain. The "linked on-chain" language in §2.4's stage 5 describes a future enhancement, not the current implementation; today only the donation transactions themselves (§5) are on-chain.
 
-**Notification fan-out:** posting an impact update also notifies every distinct past donor to that campaign (§4.3) — this is the second of two notification triggers currently wired into the event/action pipeline (the first being `donation_received`, fired when a `DonationSent` event is observed). See "Deferred / Postponed / Frozen Features" in `CLAUDE.md` for the current status of push delivery to devices.
+**Notification fan-out:** posting an impact update also notifies every distinct past donor to that campaign (§4.3) — this is the second of two notification triggers currently wired into the event/action pipeline (the first being `donation_received`, fired when a `DonationSent` event is observed).
 
 ---
 
@@ -621,7 +621,6 @@ PANGEA maintains a small operational reserve deployed in Aave v3 or Compound v3 
 - Only USDC or DAI deployed — no volatile assets, no yield chasing
 - Only Aave v3 or Compound v3 — audited, established protocols
 - Reserve target: 6 months of operating costs (~$11,500)
-- At 4% APY on an $11,500 reserve: ~$460/year — a supplemental contribution toward hosting costs (~$3,600/year), not a full offset; the reserve funds runway during a shortfall, while yield alone covers roughly 13% of hosting or ~2% of total annual operating costs (~$23,000/year, §10.1)
 
 **Pillar 3 — Annual "Keep PANGEA Running" Campaign**
 
