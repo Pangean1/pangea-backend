@@ -2,7 +2,7 @@
 
 This document tracks changes to PANGEA that are intentionally **not** being built yet, deferred until the project reaches its **Production stage** (post-mainnet, once real institutional/grant engagement exists). Each entry explains the current gap, why it's deferred rather than fixed now, what the eventual solution looks like, and what should trigger picking it back up.
 
-See `docs/WHITEPAPER.md` for the original full design these items are deferred from.
+See [WHITEPAPER.md](WHITEPAPER.md) for the original full design these items are deferred from.
 
 ---
 
