@@ -2,11 +2,12 @@
 
 > 📄 For the full project vision and technical specification, see the [PANGEA White Paper](docs/WHITEPAPER.md)
 
-> Non-profit peer-to-peer humanitarian donation platform on **Polygon PoS** (Amoy testnet).
+> Non-profit peer-to-peer humanitarian donation platform on **Polygon PoS**.
 
 PANGEA lets donors send ERC-20 tokens directly to verified humanitarian campaigns. This repository is the Python/FastAPI backend that indexes on-chain `DonationSent` events, stores them in PostgreSQL, and delivers Firebase push notifications to campaign recipients in real time.
 
-- Smart contracts: [pangea-contracts](https://github.com/Pangean1/pangea-contracts) _(see also §Smart Contract)_
+- Smart contracts: [pangea-contracts](https://github.com/Pangean1/pangea-contracts)
+- Frontend UI: [pangea-frontend](https://github.com/Pangean1/pangea-frontend)
 - Network: Polygon Amoy (testnet) → Polygon PoS mainnet
 
 ---
@@ -23,8 +24,9 @@ PANGEA lets donors send ERC-20 tokens directly to verified humanitarian campaign
 8. [Systemd Service](#systemd-service)
 9. [Database Schema](#database-schema)
 10. [Package Versions](#package-versions)
-11. [Roadmap](#roadmap)
-12. [License](#license)
+11. [Smart Contract](#smart-contract)
+12. [Roadmap](#roadmap)
+13. [License](#license)
 
 ---
 
@@ -340,7 +342,7 @@ sudo journalctl -u pangea-backend -f
 | `recipient_address` | VARCHAR(42) | Receiver wallet |
 | `token_address` | VARCHAR(42) | ERC-20 token contract |
 | `amount_wei` | VARCHAR(78) | Donation amount in wei |
-| `message` | TEXT | Donor message |
+| `message` | TEXT | |
 | `block_timestamp` | TIMESTAMPTZ | Timestamp from the chain event |
 | `block_number` | BIGINT | |
 | `created_at` | TIMESTAMPTZ | |
@@ -400,7 +402,7 @@ Key events and functions used by this backend:
 
 ### Production Stage
 
-Changes intentionally deferred until PANGEA reaches its Production stage (post-mainnet, once real institutional/grant engagement exists) are tracked in [`docs/PRODUCTION_STAGE_CHANGES.md`](docs/PRODUCTION_STAGE_CHANGES.md).
+Changes intentionally deferred until PANGEA reaches its Production stage (post-mainnet, once real institutional/grant engagement exists) are tracked in [`PRODUCTION_STAGE_CHANGES.md`](docs/PRODUCTION_STAGE_CHANGES.md).
 
 ---
 
