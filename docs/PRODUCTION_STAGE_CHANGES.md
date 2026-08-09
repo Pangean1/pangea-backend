@@ -136,6 +136,25 @@ Neither path has automated balance monitoring or top-up. On testnet this is a mi
 
 ---
 
+## 8. Lost/stolen phone — no session revocation and no key recovery
+
+**Situation:** The embedded wallet's private key lives only in `expo-secure-store` on one device (`frontend/pangea-mobile/lib/auth.ts`), with no seed phrase and no export function — by design, per the "no crypto feel" principle. This creates two distinct gaps if a phone is lost or stolen, confirmed by reading the code (not assumed):
+
+1. **In-the-moment theft (phone unlocked/still logged in):** `lib/auth.ts` reads/writes the signing key via plain `SecureStore.getItemAsync`/`setItemAsync` — no `requireAuthentication: true` option, so the app itself adds no biometric/PIN gate beyond whatever unlocked the phone. The JWT session (`backend/config.py`: `jwt_expiry_days = 30`) has no matching revoke/logout endpoint anywhere in `backend/app` — once a phone is logged in, neither the user nor an admin can end that session remotely for up to 30 days. Whoever holds an unlocked, logged-in phone can sign a donation (draining any USDC in the embedded wallet to a campaign they control) or, if the account is a beneficiary, deactivate/edit that beneficiary's campaign.
+2. **Permanent loss (destroyed/wiped/factory reset):** Android's hardware-backed keystore does not survive a device change, and there is no backup of the key anywhere (server or cloud) — consistent with non-custodial design. Logging into the same email on a new device re-proves identity via OTP but generates a brand-new key and wallet address; the old address's on-chain history stays public forever (nothing is ever deleted) but becomes permanently unsignable, and any funds left at that address are unrecoverable. This already happened by accident once, unrelated to device loss — see the 2026-07-10 `wallet_address` overwrite incident — and Oscar's confirmed position at the time was that this exact outcome (orphaned old address, no restoration) is an acceptable non-custodial tradeoff.
+
+**Cause:** Never designed for — the embedded-wallet flow was built to get one working signing path shipped (email OTP → local key → ZeroDev account), not to handle device compromise or loss.
+
+**Solution:**
+1. For in-the-moment theft: set `requireAuthentication: true` on the SecureStore key read (forces biometric/PIN at signing time, not just at phone unlock), and add a per-user token-version/salt check to JWT validation plus a "log out other devices" endpoint, so a user (or Oscar, on request) can invalidate a stolen phone's session without waiting out the 30-day expiry.
+2. For permanent loss: a real recovery design — e.g. social/guardian recovery (a small ERC-4337 module pattern) or a user-controlled encrypted backup of the key — has not been designed at all; this is a product decision, not a quick patch.
+
+**Effort & Risk:** Low for the theft mitigation (SecureStore option + one backend endpoint, no schema change). High for true recovery — it's a real security/UX design exercise, not a bolt-on, and a wrong design (e.g. a recoverable key that reintroduces a custodial-style single point of failure) would undercut the non-custodial principle itself.
+
+**Trigger to revisit:** Before mainnet — once real (not testnet) funds are at stake, an unrecoverable phone loss becomes a real financial loss for a real user, not a testnet inconvenience.
+
+---
+
 ## How to add a new entry
 
 Use the same structure: **Situation** (what's missing/what's the gap), **Cause** (why it wasn't built now / why it's deferred), **Solution** (what the eventual fix looks like), **Effort & Risk**, **Trigger to revisit** (the specific condition that should prompt picking this up — not just "later").
