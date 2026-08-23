@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How a donation happens without Pangea holding your private key</title>
+<style>
+  :root {
+    --paper: #f3f6f5;
+    --surface: #ffffff;
+    --ink: #16232a;
+    --muted: #56666b;
+    --line: #d9e0dd;
+    --teal: #0e6b5c;
+    --teal-tint: #e3efec;
+    --sand: #a8672a;
+    --sand-tint: #f4ead9;
+    --slate: #5b6a70;
+    --slate-tint: #e9edee;
+    --code-bg: #eceeec;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0c1416;
+      --surface: #121c1f;
+      --ink: #e8edea;
+      --muted: #9fb0b3;
+      --line: #263133;
+      --teal: #3bb39d;
+      --teal-tint: #14302b;
+      --sand: #e3a15e;
+      --sand-tint: #332818;
+      --slate: #9aacb1;
+      --slate-tint: #1b2528;
+      --code-bg: #182022;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0c1416;
+    --surface: #121c1f;
+    --ink: #e8edea;
+    --muted: #9fb0b3;
+    --line: #263133;
+    --teal: #3bb39d;
+    --teal-tint: #14302b;
+    --sand: #e3a15e;
+    --sand-tint: #332818;
+    --slate: #9aacb1;
+    --slate-tint: #1b2528;
+    --code-bg: #182022;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 16.5px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+  }
+
+  .page {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  code, .term {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.88em;
+    background: var(--code-bg);
+    padding: 0.1em 0.4em;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
+  header.masthead {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 32px;
+  }
+
+  .eyebrow {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--teal);
+  }
+
+  h1 {
+    font-family: Iowan Old Style, Palatino Linotype, Georgia, Cambria, serif;
+    font-size: 2.15rem;
+    line-height: 1.18;
+    font-weight: 600;
+    margin: 0;
+    text-wrap: balance;
+    max-width: 18ch;
+  }
+
+  .dek {
+    color: var(--muted);
+    font-size: 1.08rem;
+    max-width: 62ch;
+    margin: 0;
+  }
+
+  h2 {
+    font-family: Iowan Old Style, Palatino Linotype, Georgia, Cambria, serif;
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+    text-wrap: balance;
+  }
+
+  section { display: flex; flex-direction: column; gap: 14px; }
+
+  p { margin: 0; max-width: 68ch; }
+
+  .callout {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--teal);
+    border-radius: 8px;
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .callout p { font-size: 1.03rem; }
+  .callout .label {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--teal);
+  }
+
+  figure {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .diagram-frame {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px;
+    overflow-x: auto;
+  }
+  svg { display: block; max-width: 100%; height: auto; }
+  figcaption {
+    color: var(--muted);
+    font-size: 0.92rem;
+    max-width: 68ch;
+  }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    font-size: 0.95rem;
+  }
+  thead th {
+    text-align: left;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  thead th:first-child { color: var(--teal); }
+  thead th:last-child { color: var(--slate); }
+  tbody td {
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody td:first-child { border-right: 1px solid var(--line); }
+
+  .table-wrap { overflow-x: auto; }
+
+  footer.closing {
+    border-top: 1px solid var(--line);
+    padding-top: 24px;
+    color: var(--muted);
+    font-size: 0.92rem;
+    max-width: 68ch;
+  }
+  footer.closing strong { color: var(--ink); }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <header class="masthead">
+    <span class="eyebrow">Pangea — non-custodial architecture</span>
+    <h1>How a donation happens without Pangea holding your key</h1>
+    <p class="dek">Short version: Pangea never needs your private key because Pangea never signs anything. Your phone signs. The blockchain checks the signature. Here's the mechanism, step by step.</p>
+  </header>
+
+  <section class="callout">
+    <span class="label">The short answer</span>
+    <p>Your phone generates a signing key the moment you first log in, and that key is encrypted inside Android's <code>SecureStore</code> — it is never sent anywhere, not even to Pangea's own servers. When you donate, your phone uses that key to sign the transaction <em>on the device</em>. What travels off the phone is the finished, signed transaction — not the key. Polygon's network then verifies that signature itself. Pangea's backend isn't part of that check at all; it just watches the public blockchain afterward and updates its own records to match.</p>
+  </section>
+
+  <section>
+    <h2>Setup — the one time your phone and Pangea talk about identity</h2>
+    <p>This happens once, the first time you log in on a device. It only establishes <em>who you are</em>. No money, no signing key, ever crosses to Pangea's side.</p>
+    <figure>
+      <div class="diagram-frame">
+        <svg viewBox="0 0 860 300" role="img" aria-label="Setup flow: the phone verifies identity with Pangea by email OTP, then independently generates a private key inside SecureStore and only sends the resulting public wallet address to Pangea — the private key itself never leaves the phone.">
+          <defs>
+            <marker id="ah1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+
+          <!-- lanes -->
+          <rect x="16" y="20" width="828" height="110" rx="10" fill="var(--teal-tint)" />
+          <text x="32" y="42" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="11" letter-spacing="1" fill="var(--teal)">YOUR PHONE</text>
+
+          <rect x="16" y="170" width="828" height="110" rx="10" fill="var(--slate-tint)" />
+          <text x="32" y="192" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="11" letter-spacing="1" fill="var(--slate)">PANGEA'S SERVERS</text>
+
+          <!-- phone lane nodes -->
+          <rect x="40" y="60" width="150" height="52" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="115" y="82" text-anchor="middle" font-size="12.5" fill="var(--ink)">Enter email,</text>
+          <text x="115" y="98" text-anchor="middle" font-size="12.5" fill="var(--ink)">get OTP code</text>
+
+          <rect x="330" y="60" width="180" height="52" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="420" y="76" text-anchor="middle" font-size="12" fill="var(--ink)">Generate ECDSA key</text>
+          <text x="420" y="91" text-anchor="middle" font-size="12" fill="var(--ink)">pair locally</text>
+          <text x="420" y="106" text-anchor="middle" font-size="10.5" fill="var(--muted)">(expo-crypto + viem)</text>
+
+          <rect x="630" y="60" width="196" height="52" rx="8" fill="var(--surface)" stroke="var(--teal)" stroke-width="1.6"/>
+          <text x="728" y="82" text-anchor="middle" font-size="12.5" fill="var(--ink)">Stored in SecureStore —</text>
+          <text x="728" y="98" text-anchor="middle" font-size="12.5" fill="var(--ink)">never transmitted</text>
+
+          <!-- pangea lane nodes -->
+          <rect x="40" y="210" width="220" height="52" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="150" y="232" text-anchor="middle" font-size="12.5" fill="var(--ink)">Verify OTP,</text>
+          <text x="150" y="248" text-anchor="middle" font-size="12.5" fill="var(--ink)">issue login session</text>
+
+          <rect x="590" y="210" width="236" height="52" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="708" y="232" text-anchor="middle" font-size="12.5" fill="var(--ink)">Save public wallet</text>
+          <text x="708" y="248" text-anchor="middle" font-size="12.5" fill="var(--ink)">address in the database</text>
+
+          <!-- arrows -->
+          <line x1="115" y1="112" x2="150" y2="210" stroke="currentColor" stroke-width="1.3" marker-end="url(#ah1)"/>
+          <text x="95" y="165" font-size="11" fill="var(--muted)">OTP code</text>
+
+          <line x1="220" y1="215" x2="145" y2="115" stroke="currentColor" stroke-width="1.3" marker-end="url(#ah1)"/>
+          <text x="205" y="165" font-size="11" fill="var(--muted)">session token</text>
+
+          <line x1="190" y1="86" x2="330" y2="86" stroke="currentColor" stroke-width="1.3" marker-end="url(#ah1)"/>
+          <line x1="510" y1="86" x2="630" y2="86" stroke="currentColor" stroke-width="1.3" marker-end="url(#ah1)"/>
+          <text x="565" y="76" text-anchor="middle" font-size="11" fill="var(--muted)">derives</text>
+
+          <line x1="728" y1="112" x2="708" y2="210" stroke="var(--teal)" stroke-width="1.6" marker-end="url(#ah1)"/>
+          <text x="820" y="165" text-anchor="end" font-size="11" fill="var(--teal)">public address only —</text>
+          <text x="820" y="180" text-anchor="end" font-size="11" fill="var(--teal)">never the key</text>
+        </svg>
+      </div>
+      <figcaption>Login (top-left) only proves who you are. Key generation (top-right) happens independently, entirely on the phone. The only thing that ever reaches Pangea's database is a public wallet address — mathematically impossible to reverse into the private key.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>Every donation — signing happens on the phone, verification happens on-chain</h2>
+    <p>This is the part that matters: notice there is no arrow from Pangea's servers into the transaction itself. Pangea is upstream of it (login) and downstream of it (reading the result) — never inside it.</p>
+    <figure>
+      <div class="diagram-frame">
+        <svg viewBox="0 0 900 620" role="img" aria-label="Donation flow: the phone signs a UserOperation locally and sends only the signed result to a ZeroDev bundler; the EntryPoint contract and the smart account contract on Polygon verify the signature on-chain and execute the USDC transfer, sponsored by a paymaster; Pangea's backend only reads the resulting event afterward to update its own database, with no path back into the signing or execution steps.">
+          <defs>
+            <marker id="ah2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+            </marker>
+            <marker id="ah2-verify" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="var(--sand)"/>
+            </marker>
+          </defs>
+
+          <!-- lanes -->
+          <rect x="16" y="16" width="868" height="150" rx="10" fill="var(--teal-tint)"/>
+          <text x="32" y="38" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="11" letter-spacing="1" fill="var(--teal)">YOUR PHONE</text>
+
+          <rect x="16" y="182" width="868" height="290" rx="10" fill="var(--sand-tint)"/>
+          <text x="32" y="204" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="11" letter-spacing="1" fill="var(--sand)">POLYGON — public, trustless</text>
+
+          <rect x="16" y="488" width="868" height="116" rx="10" fill="var(--slate-tint)"/>
+          <text x="32" y="510" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="11" letter-spacing="1" fill="var(--slate)">PANGEA'S SERVERS — read-only, after the fact</text>
+
+          <!-- phone nodes -->
+          <rect x="48" y="70" width="230" height="58" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="163" y="94" text-anchor="middle" font-size="12.5" fill="var(--ink)">Build donation request</text>
+          <text x="163" y="110" text-anchor="middle" font-size="10.5" fill="var(--muted)">(UserOperation)</text>
+
+          <rect x="340" y="70" width="260" height="58" rx="8" fill="var(--surface)" stroke="var(--teal)" stroke-width="1.6"/>
+          <text x="470" y="94" text-anchor="middle" font-size="12.5" fill="var(--ink)">Sign locally with the</text>
+          <text x="470" y="110" text-anchor="middle" font-size="10.5" fill="var(--muted)">SecureStore key (ZeroDev SDK)</text>
+
+          <!-- blockchain nodes -->
+          <rect x="48" y="230" width="160" height="54" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="128" y="252" text-anchor="middle" font-size="12" fill="var(--ink)">ZeroDev</text>
+          <text x="128" y="267" text-anchor="middle" font-size="12" fill="var(--ink)">Bundler</text>
+
+          <rect x="270" y="230" width="160" height="54" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="350" y="252" text-anchor="middle" font-size="12" fill="var(--ink)">EntryPoint</text>
+          <text x="350" y="267" text-anchor="middle" font-size="12" fill="var(--ink)">contract</text>
+
+          <rect x="492" y="230" width="230" height="54" rx="8" fill="var(--surface)" stroke="var(--sand)" stroke-width="1.8"/>
+          <text x="607" y="250" text-anchor="middle" font-size="12" fill="var(--ink)">Smart-account contract</text>
+          <text x="607" y="266" text-anchor="middle" font-size="10.5" fill="var(--sand)">verifies the signature</text>
+
+          <rect x="270" y="340" width="160" height="54" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-dasharray="4 3"/>
+          <text x="350" y="360" text-anchor="middle" font-size="12" fill="var(--ink)">Paymaster</text>
+          <text x="350" y="375" text-anchor="middle" font-size="10.5" fill="var(--muted)">sponsors gas</text>
+
+          <rect x="492" y="340" width="230" height="54" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="607" y="360" text-anchor="middle" font-size="12" fill="var(--ink)">PangeaDonation.sol</text>
+          <text x="607" y="375" text-anchor="middle" font-size="10.5" fill="var(--muted)">sends USDC to beneficiary</text>
+
+          <!-- pangea nodes -->
+          <rect x="48" y="518" width="240" height="54" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="168" y="538" text-anchor="middle" font-size="12" fill="var(--ink)">Event listener polls</text>
+          <text x="168" y="553" text-anchor="middle" font-size="10.5" fill="var(--muted)">get_logs() every few seconds</text>
+
+          <rect x="340" y="518" width="200" height="54" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+          <text x="440" y="538" text-anchor="middle" font-size="12" fill="var(--ink)">Database updated</text>
+          <text x="440" y="553" text-anchor="middle" font-size="10.5" fill="var(--muted)">donation recorded</text>
+
+          <!-- arrows -->
+          <line x1="278" y1="99" x2="340" y2="99" stroke="currentColor" stroke-width="1.3" marker-end="url(#ah2)"/>
+
+          <path d="M400,128 C260,175 170,190 128,230" fill="none" stroke="var(--teal)" stroke-width="1.6" marker-end="url(#ah2)"/>
+          <text x="205" y="195" text-anchor="middle" font-size="11" fill="var(--teal)">signed UserOp</text>
+          <text x="205" y="209" text-anchor="middle" font-size="10" fill="var(--muted)">(no private key)</text>
+
+          <line x1="208" y1="257" x2="270" y2="257" stroke="currentColor" stroke-width="1.3" marker-end="url(#ah2)"/>
+          <text x="239" y="248" text-anchor="middle" font-size="10.5" fill="var(--muted)">submits</text>
+
+          <line x1="350" y1="340" x2="350" y2="284" stroke="currentColor" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#ah2)"/>
+          <text x="374" y="315" font-size="10.5" fill="var(--muted)">pays gas</text>
+
+          <line x1="430" y1="257" x2="492" y2="257" stroke="var(--sand)" stroke-width="1.8" marker-end="url(#ah2-verify)"/>
+          <text x="461" y="248" text-anchor="middle" font-size="10.5" fill="var(--sand)">checks signature</text>
+
+          <line x1="607" y1="284" x2="607" y2="340" stroke="currentColor" stroke-width="1.3" marker-end="url(#ah2)"/>
+          <text x="631" y="315" font-size="10.5" fill="var(--muted)">authorized</text>
+
+          <path d="M492,378 C300,430 220,470 168,518" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#ah2)"/>
+          <text x="300" y="462" text-anchor="middle" font-size="10.5" fill="var(--muted)">DonationMade event</text>
+          <text x="300" y="476" text-anchor="middle" font-size="10" fill="var(--muted)">(public, read-only)</text>
+
+          <line x1="288" y1="545" x2="340" y2="545" stroke="currentColor" stroke-width="1.3" marker-end="url(#ah2)"/>
+          <text x="314" y="536" text-anchor="middle" font-size="10.5" fill="var(--muted)">writes</text>
+        </svg>
+      </div>
+      <figcaption>The teal arrow is the only thing that leaves your phone: a fully signed transaction, not the key that produced it. The sand-colored arrow is the actual trust mechanism — the smart-account contract itself checks that the signature matches your key, so no server needs to be trusted to do that check. Pangea's backend (bottom lane) only shows up afterward, reading a public event to keep its own database in sync.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>What lives where</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Stays on your phone, always</th><th>Reaches Pangea's servers</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>The private key (<code>SecureStore</code>)</td><td>The public wallet address it derives from</td></tr>
+          <tr><td>The act of signing each transaction</td><td>The already-signed transaction's on-chain result</td></tr>
+          <tr><td>Any ability to move funds</td><td>The email OTP code and login session (identity only)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="closing">
+    This is what "non-custodial" means in practice for Pangea, not just as a slogan: <strong>there is no step in this diagram where a server could sign, redirect, or block a donation</strong>, because no server ever holds the thing needed to sign one. Polygon's <code>EntryPoint</code> and your smart-account contract are the only judges of whether a transaction is valid — and they only accept it if it was signed by the key sitting in <code>SecureStore</code> on your phone.
+  </footer>
+
+</div>
+
+</body>
+</html>
