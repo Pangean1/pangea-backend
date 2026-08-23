@@ -8,24 +8,23 @@ See [WHITEPAPER.md](WHITEPAPER.md) for the original full design these items are 
 
 ## 1. `campaignId` is not an indexed event topic (on-chain traceability gap)
 
-**Situation:** PANGEA's core principle is "every transaction publicly verifiable on-chain." Today, that's only true if you trust PANGEA's own backend database. The `DonationSent` event emitted by `PangeaDonation.sol` is:
+**Situation:** the `DonationSent` event emitted by `PangeaDonation.sol` is:
 
 ```solidity
 event DonationSent(address indexed donor, address indexed recipient, address indexed token, uint256 amount, uint256 campaignId, uint256 timestamp, string message);
 ```
 
-`campaignId` is the only field that ties a donation to a specific campaign, but it's a bare number (e.g. `8`) that's meaningless without a name lookup — and that lookup exists **only** in PANGEA's Postgres `campaigns` table, nowhere on-chain. Someone auditing donations directly on PolygonScan, without trusting PANGEA's backend, cannot tell which campaign a donation belongs to.
+`campaignId` is the only field that ties a donation to a specific campaign, but it's a bare number (e.g. `8`) that's meaningless without a name lookup — and that lookup exists in PANGEA's Postgres `campaigns` table. A partial mitigation was shipped (pangea-frontend commit `3bcba0c`): the `message` field, previously always sent as `''`, now carries `"Campaign: <name>"` for every new donation (see `app/campaign/[id]/donate.tsx`). `campaignId` already appears as its own field in the decoded PolygonScan log, right above `message`, so the two together let a viewer read both the numeric id and the campaign name.
 
-**Cause:** `campaignId` was never marked `indexed` in the event signature, so it isn't a filterable topic — even someone who already knows "campaignId 8 = Help Ukraine" can't filter the contract's log view by it on PolygonScan. They'd have to open every single `DonationSent` log one at a time and read the decoded value by eye.
+**Cause:** `campaignId` was never marked `indexed` in the event signature, so it isn't a filterable topic.
 
-**Solution:** Mark `campaignId` as `indexed` in the event signature (max 3 indexed params already used by `donor`/`recipient`/`token`, so one of those would need to be dropped from indexing, or the event restructured — needs real design work, not a one-line change). Requires:
+**Solution:** Mark `campaignId` as `indexed` in the event signature (max 3 indexed params already used by `donor`/`recipient`/`token`, so one of those would need to be dropped from indexing, or the event restructured — needs real design work, not a one-line change).
+Requires:
 - Modifying and redeploying `PangeaDonation.sol` to a new address
 - Re-registering all existing campaigns against the new contract
 - Updating `CONTRACT_ADDRESS` everywhere (backend `.env`, event listener config)
 - Updating the listener's start block to the new deployment block
 - Re-verifying the new contract on PolygonScan
-
-A smaller, non-blocking partial mitigation shipped 2026-07-04 (pangea-frontend commit `3bcba0c`): the `message` field, previously always sent as `''`, now carries `"Campaign: <name>"` for every new donation (see `app/campaign/[id]/donate.tsx`). `campaignId` already appears as its own field in the decoded PolygonScan log, right above `message`, so the two together let a viewer read both the numeric id and the campaign name directly off-chain without trusting PANGEA's database — even though `campaignId` still isn't a filterable indexed topic (that part of the gap remains, see above). This only covers donations made from 2026-07-04 onward; donations before that date remain unlabeled in the raw log.
 
 **Effort & Risk:** High. New contract address is a breaking change across backend, frontend, and every previously-registered campaign. Not something to do casually post-mainnet without a clear migration plan.
 
