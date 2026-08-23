@@ -326,6 +326,10 @@ sudo journalctl -u pangea-backend -f
 | `description` | TEXT | Campaign description |
 | `active` | BOOLEAN | Mirrors contract state |
 | `total_raised_wei` | VARCHAR(78) | Running total in wei (string to hold uint256) |
+| `goal_wei` | VARCHAR(78) | Funding goal in wei (string to hold uint256) |
+| `media_url` | VARCHAR(512) | Campaign image/video URL, nullable |
+| `media_type` | ENUM | `image`, `video`; nullable |
+| `deadline` | TIMESTAMPTZ | Display-only, nullable — no auto-deactivation job |
 | `created_at` | TIMESTAMPTZ | |
 | `updated_at` | TIMESTAMPTZ | |
 
@@ -355,11 +359,22 @@ sudo journalctl -u pangea-backend -f
 | `user_id` | UUID (FK) | → `users.id`, CASCADE delete |
 | `donation_id` | UUID (FK) | → `donations.id`, SET NULL on delete, nullable |
 | `campaign_id` | UUID (FK) | → `campaigns.id`, SET NULL on delete, nullable |
-| `type` | ENUM | `donation_received`, `campaign_created`, `campaign_status_changed`, `general` |
+| `type` | ENUM | `donation_received`, `campaign_created`, `campaign_status_changed`, `impact_update`, `general` |
 | `title` | VARCHAR(256) | Notification title |
 | `body` | TEXT | Notification body |
 | `is_read` | BOOLEAN | Client has read this notification |
 | `is_sent` | BOOLEAN | FCM delivery succeeded |
+| `created_at` | TIMESTAMPTZ | |
+
+### `impact_updates`
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID | Primary key |
+| `campaign_id` | UUID (FK) | → `campaigns.id`, CASCADE delete |
+| `message` | TEXT | Update text posted by the beneficiary |
+| `media_url` | VARCHAR(512) | Image/video URL, nullable |
+| `media_type` | ENUM | `image`, `video`; nullable |
 | `created_at` | TIMESTAMPTZ | |
 
 ---
