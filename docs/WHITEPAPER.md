@@ -138,7 +138,7 @@ Stablecoins (USDC) eliminate cryptocurrency volatility. Smart contracts replace 
 
 PANGEA uses ERC-4337 Account Abstraction via the ZeroDev SDK. After a user authenticates with email OTP (§2.3), the app locally generates a random ECDSA private key (via `expo-crypto`), stored only in the device's SecureStore and never transmitted anywhere. That key becomes the signer for a ZeroDev Kernel smart account, created deterministically at a fixed on-chain address. Users never see the private key or a seed phrase, and PANGEA's backend never has access to it — it exists only on the user's device. PANGEA cannot move funds.
 
-[Diagram: how a donation happens without PANGEA holding your private key](non-custodial-architecture.html) — step-by-step setup and donation flow, with what stays on the device vs. what reaches PANGEA's servers.
+[Diagram: how a donation happens without PANGEA holding your private key](https://htmlpreview.github.io/?https://raw.githubusercontent.com/Pangean1/pangea-backend/main/docs/non-custodial-architecture.html) — step-by-step setup and donation flow, with what stays on the device vs. what reaches PANGEA's servers.
 
 ### 4.3 Event-Driven Notification Architecture
 
