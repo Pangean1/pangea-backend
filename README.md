@@ -157,14 +157,14 @@ cp /path/to/downloaded-key.json firebase-credentials.json
 
 ```sql
 -- Run as the postgres superuser
-CREATE USER pangea WITH PASSWORD 'pangea';
-CREATE DATABASE pangea OWNER pangea;
-GRANT ALL PRIVILEGES ON DATABASE pangea TO pangea;
+CREATE USER your_db_user WITH PASSWORD 'your_db_password';
+CREATE DATABASE your_db_name OWNER your_db_user;
+GRANT ALL PRIVILEGES ON DATABASE your_db_name TO your_db_user;
 ```
 
 ```bash
 # Verify the connection string works
-psql postgresql://pangea:pangea@localhost:5432/pangea -c '\l'
+psql postgresql://your_db_user:your_db_password@localhost:5432/your_db_name -c '\l'
 ```
 
 Tables are created automatically on first startup via SQLAlchemy's `Base.metadata.create_all`.
@@ -188,7 +188,7 @@ Copy `.env.example` to `.env` and set the values below.
 | `APP_NAME` | `PANGEA API` | Title shown in OpenAPI docs |
 | `APP_VERSION` | `0.1.0` | Semantic version |
 | `DEBUG` | `false` | Enable SQLAlchemy echo + DEBUG log level |
-| `DATABASE_URL` | `postgresql+asyncpg://pangea:pangea@localhost:5432/pangea` | Async PostgreSQL DSN |
+| `DATABASE_URL` | `postgresql+asyncpg://your_db_user:your_db_password@localhost:5432/your_db_name` | Async PostgreSQL DSN |
 | `POLYGON_RPC_URL` | `https://polygon-amoy-bor-rpc.publicnode.com` | Polygon Amoy (or mainnet) HTTP/WS RPC |
 | `CONTRACT_ADDRESS` | _(empty)_ | Deployed `PangeaDonation` contract address |
 | `LISTENER_START_BLOCK` | `0` | Block to begin scanning from (set to deployment block) |
