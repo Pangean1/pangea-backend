@@ -311,7 +311,7 @@ sudo journalctl -u pangea-backend -f
 | `id` | UUID | Primary key |
 | `wallet_address` | VARCHAR(42) | Checksummed Ethereum address, unique |
 | `fcm_token` | VARCHAR(512) | Firebase Cloud Messaging token, nullable |
-| `email` | VARCHAR(256) | Optional email |
+| `email` | VARCHAR(256) | Set at signup via email OTP; always present |
 | `created_at` | TIMESTAMPTZ | Server default |
 | `updated_at` | TIMESTAMPTZ | Server default, updated on write |
 
