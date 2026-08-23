@@ -2,9 +2,9 @@
 
 > 📄 For the full project vision and technical specification, see the [PANGEA White Paper](docs/WHITEPAPER.md)
 
-> Non-profit peer-to-peer humanitarian donation platform on **Polygon PoS**.
+> PANGEA: non-profit peer-to-peer on-chain humanitarian donation platform.
 
-PANGEA lets donors send ERC-20 tokens directly to verified humanitarian campaigns. This repository is the Python/FastAPI backend that indexes on-chain `DonationSent` events, stores them in PostgreSQL, and delivers Firebase push notifications to campaign recipients in real time.
+PANGEA lets donors send donations directly to verified humanitarian campaigns with zero platform fees, full on-chain transparency, and immutable audit trails. This repository is the Python/FastAPI backend that indexes on-chain `DonationSent` events, stores them in PostgreSQL, and delivers Firebase push notifications to campaign recipients in real time.
 
 - Smart contracts: [pangea-contracts](https://github.com/Pangean1/pangea-contracts)
 - Frontend UI: [pangea-frontend](https://github.com/Pangean1/pangea-frontend)
