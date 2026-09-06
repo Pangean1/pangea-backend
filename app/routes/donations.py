@@ -41,8 +41,11 @@ async def list_donations(
 
 @router.get("/donations/{tx_hash}", response_model=DonationResponse)
 async def get_donation_by_tx(tx_hash: str, db: AsyncSession = Depends(get_db)):
+    # Stored without a "0x" prefix (see web3_listener.py); callers (e.g. viem
+    # receipts) always send one, so strip it before comparing.
+    normalized = tx_hash.lower().removeprefix("0x")
     result = await db.execute(
-        select(Donation).where(Donation.tx_hash == tx_hash.lower())
+        select(Donation).where(Donation.tx_hash == normalized)
     )
     donation = result.scalar_one_or_none()
     if not donation:
