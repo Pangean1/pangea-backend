@@ -25,3 +25,6 @@ alembic/versions/*.pyc
 .idea/
 .vscode/
 *.swp
+
+# APK served for install (deployed directly on the server, not tracked in git)
+downloads/
