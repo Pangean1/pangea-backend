@@ -8,9 +8,11 @@ Start with:
 import asyncio
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from sqlalchemy import text
 
 from app.database import engine, Base
@@ -81,3 +83,18 @@ app.include_router(faucet.router)
 @app.get("/health", tags=["meta"])
 async def health():
     return {"status": "ok", "version": settings.app_version}
+
+
+DOWNLOADS_DIR = Path(__file__).resolve().parent / "downloads"
+
+
+@app.get("/download/pangea.apk", tags=["meta"])
+async def download_apk():
+    """Permanent install link for the Android APK — replaces the file in
+    downloads/ after each new EAS build instead of pointing at EAS's
+    temporary (auto-expiring) build artifact URL."""
+    return FileResponse(
+        DOWNLOADS_DIR / "pangea.apk",
+        media_type="application/vnd.android.package-archive",
+        filename="pangea.apk",
+    )
