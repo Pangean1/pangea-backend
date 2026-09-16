@@ -5,7 +5,7 @@ from email.mime.text import MIMEText
 
 import aiosmtplib
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -27,6 +27,22 @@ def _get_redis() -> Redis:
 
 def _otp_key(email: str) -> str:
     return f"otp:{email.lower()}"
+
+
+# Abuse protection for /auth/send-code: this endpoint sends a real email to
+# whatever address it's given with no login required, so it's an easy target
+# for using PANGEA as a free email-bombing relay (see auth_attempts_log.md,
+# 2026-09-16 incident) if left unthrottled.
+OTP_COOLDOWN_SECONDS = 60          # one request per email per this window
+OTP_MAX_PER_HOUR_PER_EMAIL = 5
+OTP_MAX_PER_HOUR_PER_IP = 10
+
+
+async def _hourly_count_ok(redis: Redis, key: str, limit: int) -> bool:
+    count = await redis.incr(key)
+    if count == 1:
+        await redis.expire(key, 3600)
+    return count <= limit
 
 
 async def _send_otp_email(to_email: str, otp: str) -> None:
@@ -96,12 +112,29 @@ def create_token(user: User) -> str:
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.post("/send-code", status_code=200)
-async def send_code(payload: SendCodeRequest):
+async def send_code(payload: SendCodeRequest, request: Request):
     email = payload.email.lower()
-    otp = str(secrets.randbelow(1_000_000)).zfill(6)
+    client_ip = request.client.host if request.client else "unknown"
 
     redis = _get_redis()
     try:
+        if await redis.exists(f"otp_cooldown:{email}"):
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Please wait a minute before requesting another code.",
+            )
+
+        email_ok = await _hourly_count_ok(redis, f"otp_hourly_email:{email}", OTP_MAX_PER_HOUR_PER_EMAIL)
+        ip_ok = await _hourly_count_ok(redis, f"otp_hourly_ip:{client_ip}", OTP_MAX_PER_HOUR_PER_IP)
+        if not email_ok or not ip_ok:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many verification code requests. Please try again later.",
+            )
+
+        await redis.setex(f"otp_cooldown:{email}", OTP_COOLDOWN_SECONDS, "1")
+
+        otp = str(secrets.randbelow(1_000_000)).zfill(6)
         await redis.setex(_otp_key(email), settings.otp_ttl_seconds, otp)
     finally:
         await redis.aclose()
