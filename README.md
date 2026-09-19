@@ -2,7 +2,7 @@
 
 > 📄 [PANGEA WHITE PAPER](docs/WHITEPAPER.md)
 
-> </> [PANGEA APP - QR](docs/PangeaQR.jpg)
+> 📲 [PANGEA APP - QR](docs/PangeaQR.jpg)
 
 > PANGEA: non-profit peer-to-peer on-chain humanitarian donation platform.
 

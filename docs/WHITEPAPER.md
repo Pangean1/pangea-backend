@@ -4,7 +4,7 @@
 
 > 📁 Repositories: [pangea-contracts](https://github.com/Pangean1/pangea-contracts) · [pangea-backend](https://github.com/Pangean1/pangea-backend) · [pangea-frontend](https://github.com/Pangean1/pangea-frontend)
 
-> </> [PANGEA APP - QR](PangeaQR.jpg)
+> 📲 [PANGEA APP - QR](PangeaQR.jpg)
 
 ---
 
