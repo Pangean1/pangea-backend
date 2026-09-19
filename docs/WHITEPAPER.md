@@ -483,7 +483,7 @@ Before deploying, you need the following accounts and credentials:
 | Service | URL | What you need |
 |---|---|---|
 | Polygon RPC | polygon-amoy-bor-rpc.publicnode.com (or Alchemy/Infura) | HTTPS RPC endpoint for Polygon Amoy — public endpoint works, no account required |
-| MetaMask | metamask.io | Deployer wallet address + private key |
+| Any EVM wallet (e.g. MetaMask) | metamask.io | Deployer wallet address + private key |
 | ZeroDev | zerodev.app | Project ID |
 | Firebase | console.firebase.google.com | Service account JSON file |
 | Polygon faucet | faucet.polygon.technology | Testnet POL for deployment gas |
@@ -527,13 +527,13 @@ git clone https://github.com/Pangean1/pangea-backend
 cd pangea-backend
 
 # 2. Create PostgreSQL database
-sudo -u postgres psql -c "CREATE USER pangea WITH PASSWORD 'pangea';"
-sudo -u postgres psql -c "CREATE DATABASE pangea OWNER pangea;"
+sudo -u postgres psql -c "CREATE USER your_user WITH PASSWORD 'your_password';"
+sudo -u postgres psql -c "CREATE DATABASE your_database OWNER your_user;"
 
 # 3. Configure environment
 cp .env.example .env
 # Fill in:
-# DATABASE_URL             — postgresql+asyncpg://pangea:pangea@localhost:5432/pangea
+# DATABASE_URL             — postgresql+asyncpg://your_user:your_password@localhost:5432/your_database
 # CONTRACT_ADDRESS         — deployed PangeaDonation.sol address
 # POLYGON_RPC_URL          — https://polygon-amoy-bor-rpc.publicnode.com (plain HTTPS; public endpoint, no Alchemy account needed)
 # FIREBASE_CREDENTIALS_PATH — /home/pangea/backend/firebase-credentials.json
