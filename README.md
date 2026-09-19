@@ -1,6 +1,8 @@
 # PANGEA Backend
 
-> 📄 For the full project vision and technical specification, see the [PANGEA White Paper](docs/WHITEPAPER.md)
+> 📄 [PANGEA WHITE PAPER](docs/WHITEPAPER.md)
+
+> 📲 [PANGEA APP - QR](docs/PangeaQR.jpg)
 
 > PANGEA: non-profit peer-to-peer on-chain humanitarian donation platform.
 
