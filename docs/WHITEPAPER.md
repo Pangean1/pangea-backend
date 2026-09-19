@@ -663,7 +663,7 @@ PANGEA applies the same transparency standard to its own finances that it applie
 | Sustainable — V1.5 | $60,000/mo | ~$32,400 | +$9,400 surplus |
 | Scale — V2.0 | $200,000/mo | ~$108,000 | +$85,000 surplus |
 
-*Assumptions: 15% tip rate, $1.00 average tip, $50 average donation.*
+*Assumptions: 15% tip rate on donation amount (e.g. $7.50 on a $50 average donation), ~30% donor tip opt-in rate, $50 average donation.*
 
 ---
 
