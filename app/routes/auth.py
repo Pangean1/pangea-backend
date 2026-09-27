@@ -7,7 +7,7 @@ import aiosmtplib
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
@@ -89,6 +89,15 @@ class MeResponse(BaseModel):
     user_id: str
     email: str
     wallet_address: str | None
+
+
+class CheckWalletEmailRequest(BaseModel):
+    wallet_address: str
+    email: EmailStr
+
+
+class CheckWalletEmailResponse(BaseModel):
+    matches: bool
 
 
 def create_token(user: User) -> str:
@@ -215,6 +224,24 @@ async def verify_code(payload: VerifyCodeRequest, db: AsyncSession = Depends(get
         email=email,
         wallet_address=user.wallet_address,
     )
+
+
+@router.post("/check-wallet-email", response_model=CheckWalletEmailResponse)
+async def check_wallet_email(payload: CheckWalletEmailRequest, db: AsyncSession = Depends(get_db)):
+    """Confirms whether `wallet_address` is registered to `email`, without
+    ever returning the account's actual email. Unauthenticated by necessity
+    — it's called by the frontend's legacy-wallet migration check
+    (lib/auth.ts) before login, when there's no JWT yet to authenticate
+    with — but returning a boolean rather than the email itself means it
+    can't be used to harvest emails for arbitrary on-chain wallets the way
+    an unguarded GET /users/{wallet_address} could (see users.py)."""
+    email = payload.email.lower()
+    result = await db.execute(
+        select(User).where(func.lower(User.wallet_address) == payload.wallet_address.lower())
+    )
+    user = result.scalar_one_or_none()
+    matches = bool(user and user.email and user.email.lower() == email)
+    return CheckWalletEmailResponse(matches=matches)
 
 
 @router.post("/wallet", status_code=200)

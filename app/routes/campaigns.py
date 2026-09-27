@@ -13,6 +13,7 @@ from web3 import Web3
 from app.auth_deps import get_wallet as _get_wallet
 from app.database import get_db
 from app.models.campaign import Campaign
+from app.models.donation import Donation
 from app.models.impact_update import MediaType
 from app.schemas.campaign import (
     CampaignResponse,
@@ -21,12 +22,66 @@ from app.schemas.campaign import (
     CampaignStatusRequest,
 )
 from app.services.pinata_service import upload_to_ipfs
+from app.services.user_lookup import emails_by_wallet
+from app.utils.display import display_name_and_initials
 from config import settings
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 logger = logging.getLogger(__name__)
 
 _ABI_PATH = Path(__file__).parent.parent / "abi" / "PangeaDonation.json"
+
+
+# ─── Response enrichment (beneficiary display name/initials, donor count) ────
+# CampaignResponse carries fields that aren't on the Campaign model itself
+# (derived from the users table + a donations count), so every endpoint that
+# returns a campaign builds its response through these helpers rather than
+# relying on from_attributes to pick the fields up automatically.
+
+async def _donor_counts_for_campaigns(db: AsyncSession, campaign_ids: list[uuid.UUID]) -> dict[uuid.UUID, int]:
+    if not campaign_ids:
+        return {}
+    result = await db.execute(
+        select(Donation.campaign_id, func.count(func.distinct(Donation.donor_address)))
+        .where(Donation.campaign_id.in_(campaign_ids))
+        .group_by(Donation.campaign_id)
+    )
+    return dict(result.all())
+
+
+def _to_campaign_response(campaign: Campaign, email: str | None, donor_count: int) -> CampaignResponse:
+    name, initials = display_name_and_initials(email, campaign.recipient_address)
+    return CampaignResponse(
+        id=campaign.id,
+        on_chain_id=campaign.on_chain_id,
+        recipient_address=campaign.recipient_address,
+        name=campaign.name,
+        description=campaign.description,
+        active=campaign.active,
+        total_raised_wei=campaign.total_raised_wei,
+        goal_wei=campaign.goal_wei,
+        media_url=campaign.media_url,
+        media_type=campaign.media_type,
+        deadline=campaign.deadline,
+        created_at=campaign.created_at,
+        updated_at=campaign.updated_at,
+        recipient_name=name,
+        recipient_initials=initials,
+        donor_count=donor_count,
+    )
+
+
+async def _build_campaign_responses(db: AsyncSession, campaigns: list[Campaign]) -> list[CampaignResponse]:
+    emails = await emails_by_wallet(db, {c.recipient_address for c in campaigns})
+    donor_counts = await _donor_counts_for_campaigns(db, [c.id for c in campaigns])
+    return [
+        _to_campaign_response(c, emails.get(c.recipient_address.lower()), donor_counts.get(c.id, 0))
+        for c in campaigns
+    ]
+
+
+async def _build_campaign_response(db: AsyncSession, campaign: Campaign) -> CampaignResponse:
+    return (await _build_campaign_responses(db, [campaign]))[0]
 
 
 # ─── List / get endpoints ─────────────────────────────────────────────────────
@@ -46,7 +101,7 @@ async def list_campaigns(
 
     query = query.order_by(Campaign.on_chain_id.asc()).limit(limit).offset(offset)
     campaigns = (await db.execute(query)).scalars().all()
-    return CampaignListResponse(items=list(campaigns), total=total)
+    return CampaignListResponse(items=await _build_campaign_responses(db, list(campaigns)), total=total)
 
 
 @router.get("/on-chain/{on_chain_id}", response_model=CampaignResponse)
@@ -57,7 +112,7 @@ async def get_campaign_by_chain_id(on_chain_id: int, db: AsyncSession = Depends(
     campaign = result.scalar_one_or_none()
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
-    return campaign
+    return await _build_campaign_response(db, campaign)
 
 
 @router.get("/{campaign_id}", response_model=CampaignResponse)
@@ -66,7 +121,7 @@ async def get_campaign(campaign_id: uuid.UUID, db: AsyncSession = Depends(get_db
     campaign = result.scalar_one_or_none()
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
-    return campaign
+    return await _build_campaign_response(db, campaign)
 
 
 # ─── Create campaign ──────────────────────────────────────────────────────────
@@ -204,7 +259,7 @@ async def create_campaign(
     await db.refresh(campaign)
 
     logger.info("Campaign %d created on-chain and saved to DB.", on_chain_id)
-    return campaign
+    return await _build_campaign_response(db, campaign)
 
 
 # ─── Campaign media (add/replace/remove on an existing campaign) ─────────────
@@ -228,7 +283,7 @@ async def set_campaign_media(
 
     await db.commit()
     await db.refresh(campaign)
-    return campaign
+    return await _build_campaign_response(db, campaign)
 
 
 @router.delete("/{campaign_id}/media", response_model=CampaignResponse)
@@ -249,7 +304,7 @@ async def remove_campaign_media(
 
     await db.commit()
     await db.refresh(campaign)
-    return campaign
+    return await _build_campaign_response(db, campaign)
 
 
 # ─── Edit campaign fields (goal_usd, deadline only — name/description are set once on-chain at creation and never editable) ──
@@ -281,7 +336,7 @@ async def update_campaign(
 
     await db.commit()
     await db.refresh(campaign)
-    return campaign
+    return await _build_campaign_response(db, campaign)
 
 
 # ─── Deactivate / reactivate campaign ─────────────────────────────────────────
@@ -309,7 +364,7 @@ async def set_campaign_status(
     campaign.active = payload.active
     await db.commit()
     await db.refresh(campaign)
-    return campaign
+    return await _build_campaign_response(db, campaign)
 
 
 # ─── Sync endpoint ────────────────────────────────────────────────────────────
@@ -369,4 +424,4 @@ async def sync_campaigns(db: AsyncSession = Depends(get_db)):
         await db.refresh(c)
 
     logger.info("Synced %d campaigns from chain.", len(upserted))
-    return upserted
+    return await _build_campaign_responses(db, upserted)

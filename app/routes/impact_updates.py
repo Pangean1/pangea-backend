@@ -14,8 +14,50 @@ from app.models.user import User
 from app.schemas.impact_update import ImpactUpdateResponse, ImpactUpdateListResponse
 from app.services.firebase_service import send_push_notification_multicast
 from app.services.pinata_service import upload_to_ipfs
+from app.services.user_lookup import emails_by_wallet
+from app.utils.display import display_name_and_initials
 
 router = APIRouter(tags=["impact-updates"])
+
+
+# ─── Response enrichment (beneficiary display name/initials) ─────────────────
+# An impact update itself carries no wallet — the beneficiary is the update's
+# campaign's recipient_address. See app/routes/campaigns.py for the same
+# derived-fields pattern applied to campaigns.
+
+def _to_impact_update_response(update: ImpactUpdate, name: str, initials: str) -> ImpactUpdateResponse:
+    return ImpactUpdateResponse(
+        id=update.id,
+        campaign_id=update.campaign_id,
+        message=update.message,
+        media_url=update.media_url,
+        media_type=update.media_type,
+        created_at=update.created_at,
+        beneficiary_name=name,
+        beneficiary_initials=initials,
+    )
+
+
+async def _build_impact_update_responses(db: AsyncSession, updates: list[ImpactUpdate]) -> list[ImpactUpdateResponse]:
+    campaign_ids = {u.campaign_id for u in updates}
+    recipient_by_campaign: dict[uuid.UUID, str] = {}
+    if campaign_ids:
+        result = await db.execute(
+            select(Campaign.id, Campaign.recipient_address).where(Campaign.id.in_(campaign_ids))
+        )
+        recipient_by_campaign = dict(result.all())
+
+    emails = await emails_by_wallet(db, set(recipient_by_campaign.values()))
+
+    responses = []
+    for u in updates:
+        recipient = recipient_by_campaign.get(u.campaign_id)
+        name, initials = display_name_and_initials(
+            emails.get(recipient.lower()) if recipient else None,
+            recipient or u.campaign_id.hex,
+        )
+        responses.append(_to_impact_update_response(u, name, initials))
+    return responses
 
 
 # ── /impact-updates ─────────────────────────────────────────────────────────
@@ -46,7 +88,7 @@ async def list_impact_updates(
 
     query = query.order_by(ImpactUpdate.created_at.desc()).limit(limit).offset(offset)
     updates = (await db.execute(query)).scalars().all()
-    return ImpactUpdateListResponse(items=list(updates), total=total)
+    return ImpactUpdateListResponse(items=await _build_impact_update_responses(db, list(updates)), total=total)
 
 
 # ── /campaigns/{id}/impact-updates ──────────────────────────────────────────
@@ -69,7 +111,7 @@ async def list_campaign_impact_updates(
 
     query = query.order_by(ImpactUpdate.created_at.desc()).limit(limit).offset(offset)
     updates = (await db.execute(query)).scalars().all()
-    return ImpactUpdateListResponse(items=list(updates), total=total)
+    return ImpactUpdateListResponse(items=await _build_impact_update_responses(db, list(updates)), total=total)
 
 
 @router.post("/campaigns/{campaign_id}/impact-updates", response_model=ImpactUpdateResponse)
@@ -109,7 +151,7 @@ async def create_impact_update(
 
     await db.commit()
     await db.refresh(update)
-    return update
+    return (await _build_impact_update_responses(db, [update]))[0]
 
 
 async def _notify_donors(db: AsyncSession, campaign: Campaign, update: ImpactUpdate) -> None:
