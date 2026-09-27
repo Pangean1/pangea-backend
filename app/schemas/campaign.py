@@ -20,6 +20,12 @@ class CampaignResponse(BaseModel):
     deadline: datetime | None
     created_at: datetime
     updated_at: datetime
+    # Derived, not stored on the model — see app/utils/display.py. recipient_name
+    # is the beneficiary's email local-part (never the full email) or, if no
+    # email is registered yet, the shortened wallet address.
+    recipient_name: str
+    recipient_initials: str
+    donor_count: int
 
     model_config = {"from_attributes": True}
 

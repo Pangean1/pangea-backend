@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth_deps import get_wallet
 from app.database import get_db
 from app.models.notification import Notification
 from app.models.user import User
@@ -41,7 +42,24 @@ async def register_user(payload: UserCreate, db: AsyncSession = Depends(get_db))
 
 
 @router.get("/{wallet_address}", response_model=UserResponse)
-async def get_user(wallet_address: str, db: AsyncSession = Depends(get_db)):
+async def get_user(
+    wallet_address: str,
+    auth: tuple[UUID, str] = Depends(get_wallet),
+    db: AsyncSession = Depends(get_db),
+):
+    # Wallet addresses are public on-chain, and this endpoint's response
+    # includes the account's real email — without this check, anyone could
+    # pair any on-chain wallet with a full email just by calling this
+    # endpoint (found 2026-09-27 while adding derived display names
+    # elsewhere; see app/utils/display.py). Callers that only need to know
+    # whether a wallet belongs to a given email — e.g. the frontend's
+    # device-migration check, which runs before login and has no wallet of
+    # its own to authenticate with — use POST /auth/check-wallet-email
+    # instead, which never returns the email itself.
+    _, caller_wallet = auth
+    if caller_wallet.lower() != wallet_address.lower():
+        raise HTTPException(status_code=403, detail="You can only look up your own account.")
+
     result = await db.execute(
         select(User).where(func.lower(User.wallet_address) == wallet_address.lower())
     )

@@ -18,6 +18,9 @@ class DonationResponse(BaseModel):
     block_timestamp: datetime
     block_number: int
     created_at: datetime
+    # Derived, not stored on the model — see app/utils/display.py.
+    donor_name: str
+    donor_initials: str
 
     model_config = {"from_attributes": True}
 
