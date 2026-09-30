@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import select, func
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from web3 import Web3
 
@@ -242,21 +243,31 @@ async def create_campaign(
         media_url = await upload_to_ipfs(media)
         media_type = MediaType.video if (media.content_type or "").startswith("video") else MediaType.image
 
-    campaign = Campaign(
-        on_chain_id=on_chain_id,
+    # Upsert, not a plain insert: the chain listener polls every few seconds and
+    # may have already saved a bare row for this on_chain_id (from the
+    # CampaignCreated event) while the media upload above was running.
+    fields = dict(
         recipient_address=wallet_address.lower(),
         name=name.strip(),
         description=description.strip(),
         active=True,
-        total_raised_wei="0",
         goal_wei=goal_wei,
         media_url=media_url,
         media_type=media_type,
         deadline=deadline_value,
     )
-    db.add(campaign)
+    await db.execute(
+        pg_insert(Campaign)
+        .values(id=uuid.uuid4(), on_chain_id=on_chain_id, total_raised_wei="0", **fields)
+        .on_conflict_do_update(
+            index_elements=[Campaign.on_chain_id],
+            set_={**fields, "updated_at": func.now()},
+        )
+    )
     await db.commit()
-    await db.refresh(campaign)
+    campaign = (
+        await db.execute(select(Campaign).where(Campaign.on_chain_id == on_chain_id))
+    ).scalar_one()
 
     logger.info("Campaign %d created on-chain and saved to DB.", on_chain_id)
     return await _build_campaign_response(db, campaign)
