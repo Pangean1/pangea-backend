@@ -17,6 +17,7 @@
 | v3.0 | March 2026 | Added Section 10: Sustainability Model — cost structure, four funding pillars, transparency dashboard |
 | v4.0 | March 2026 | Updated Section 9: real GitHub repos, actual package versions, real deployment steps from build session |
 | v5.0 | July 2026 | Replaced Google OAuth (Sections 2.3, 4.2, 7) with email OTP + locally-generated embedded wallet |
+| v6.0 | October 2026 | Sourced problem statistics (Section 3.1); marked not-yet-built features as planned; added current prototype status; rewrote roadmap (Section 11) |
 
 ---
 
@@ -48,9 +49,11 @@ Built on Polygon PoS with USDC stablecoin transfers, PANGEA provides:
 - Full on-chain auditability of every donation
 - Non-custodial architecture — PANGEA never holds user funds
 - Email OTP onboarding via ERC-4337 Account Abstraction — no seed phrases required
-- Real-time push notifications triggered by on-chain `DonationSent` events
+- Real-time push notifications triggered by on-chain `DonationSent` events *(planned — backend ready, app-side delivery not yet enabled)*
 - Publicly verifiable smart contracts deployed on Polygon PoS
 - **Zero platform fee — 100% of every donation reaches the recipient**
+
+**Current status (October 2026):** PANGEA is a working prototype on the Polygon Amoy testnet (test funds only, Android app). Email sign-in, campaign creation and management, donations, the donation tracker and on-chain records all work end to end. Not yet built: card payments, beneficiary cash-out, push notification delivery, beneficiary verification, an independent smart contract audit, and an iOS app. See Section 11.
 
 ---
 
@@ -74,7 +77,7 @@ This principle has direct consequences:
 
 PANGEA is a blockchain-powered platform that most users will never realize uses blockchain. This is by design.
 
-The donation flow is built around two buttons:
+The donation flow is designed around two buttons. *Status: today the prototype has one working flow — every donor uses an automatically created embedded wallet. "Donate with Card" is shown as a disabled placeholder, and connecting an external wallet (MetaMask etc.) is planned before mainnet.*
 
 | Button | User Experience | Under the hood |
 |---|---|---|
@@ -99,7 +102,7 @@ Every donation is accompanied by a real-time five-stage tracker showing the dono
 | 1 | Donation initiated | Donor confirms donation. Fiat converted to USDC if card. Login session verified. |
 | 2 | Smart contract executed | `PangeaDonation.sol` processes the transfer. `DonationSent` event emitted on-chain. |
 | 3 | Funds arriving at recipient | USDC transferred directly from donor wallet to recipient wallet. No intermediary custody. |
-| 4 | Recipient notified | Push notification dispatched via Firebase Cloud Messaging, triggered by on-chain event. |
+| 4 | Recipient notified | Push notification dispatched via Firebase Cloud Messaging, triggered by on-chain event. *(Planned — not yet delivered to devices.)* |
 | 5 | Impact confirmed | Recipient posts an acknowledgement — photo, message, or milestone. Stored on IPFS, linked on-chain. |
 
 ---
@@ -108,11 +111,17 @@ Every donation is accompanied by a real-time five-stage tracker showing the dono
 
 ### 3.1 Current Humanitarian Aid Landscape
 
-The global humanitarian aid sector moves approximately $31 billion annually (OCHA, 2023). Yet systemic inefficiencies persist across the traditional donation pipeline:
+Humanitarian aid is both scarce and inefficiently delivered:
+
+- **Underfunded:** in 2023, UN-coordinated humanitarian appeals received $21.8 billion — only 38% of the $56.7 billion required ([UN OCHA, Global Humanitarian Overview 2023, December update](https://www.unocha.org/publications/report/world/global-humanitarian-overview-2023-december-update-snapshot-31-december-2023)).
+- **Costly to send:** the global average cost of sending $200 across borders was 6.4% in Q4 2023 ([World Bank, Remittance Prices Worldwide](https://www.worldbank.org/en/news/press-release/2024/06/26/remittances-slowed-in-2023-expected-to-grow-faster-in-2024)).
+- **Layered intermediaries:** in 2021, 75% of funding to local and national NGOs arrived indirectly, through one or more intermediaries ([Development Initiatives, Global Humanitarian Assistance Report 2022](https://devinit.org/resources/global-humanitarian-assistance-report-2022/recipients-and-delivery-of-humanitarian-funding/)).
+
+Systemic inefficiencies persist across the traditional donation pipeline:
 
 | Problem | Current Impact | PANGEA Solution |
 |---|---|---|
-| Intermediary fees (3–8%) | Billions lost annually to admin overhead | 0% platform fee on transfers |
+| Intermediary and transfer fees | ~6.4% average cross-border transfer cost (World Bank, 2023), plus overhead at each intermediary layer | 0% platform fee on transfers |
 | Settlement delays | 3–7 business days for wire transfers | Near-instant blockchain confirmation |
 | Opacity of fund flow | Donors cannot verify end-use | Immutable on-chain transaction record |
 | Geographic restrictions | Banking exclusion for many recipients | Any smartphone + internet = access |
@@ -144,6 +153,8 @@ PANGEA uses ERC-4337 Account Abstraction via the ZeroDev SDK. After a user authe
 
 ### 4.3 Event-Driven Notification Architecture
 
+*Status: the backend side below is built. Device push delivery is not enabled yet — the app does not register push tokens — so notifications are recorded in the database but not yet delivered to phones.*
+
 The Python backend polls the Polygon Amoy RPC (a plain HTTPS endpoint — currently the public `polygon-amoy-bor-rpc.publicnode.com`, not a persistent WebSocket, not Alchemy) for the `DonationSent` event emitted by `PangeaDonation.sol`, using `Web3.HTTPProvider` and `get_logs` on a fixed interval (`LISTENER_POLL_INTERVAL`, default a few seconds). Upon detecting a new event:
 
 1. Event decoded — donor, recipient, token, amount, campaignId, message
@@ -152,6 +163,8 @@ The Python backend polls the Polygon Amoy RPC (a plain HTTPS endpoint — curren
 4. Notification record written to database for history
 
 ### 4.4 Card Payment Flow — Fiat to USDC
+
+*Status: planned, not built. This section describes the intended design.*
 
 For donors donating with card the flow is:
 
@@ -671,13 +684,16 @@ PANGEA applies the same transparency standard to its own finances that it applie
 
 ## 11. Roadmap
 
-| Phase | Timeline | Milestones |
+Dates replaced by triggers (October 2026): PANGEA is an early-stage, self-funded project, so each phase starts when the previous one is done, not on a fixed date.
+
+| Phase | Status | Milestones |
 |---|---|---|
-| Alpha | Q2 2026 | Testnet deployment on Polygon Amoy, smart contract audit, internal testing |
-| Beta | Q3 2026 | Polygon mainnet launch, 100 beta users, USDC support, tip mechanism live |
-| V1.0 | Q4 2026 | Mobile app (iOS/Android), campaign creation, NGO partnerships, Path of the Donation dashboard |
-| V1.5 | Q1 2027 | Multi-chain (Base, Celo), fiat on-ramp (Ramp Network), DeFi reserve staking |
-| V2.0 | 2027+ | Recurring donations, impact analytics, DAO governance, offramp (mobile money) |
+| Alpha — Prototype | **Done (Q2–Q3 2026)** | Smart contract (30/30 tests) deployed on Polygon Amoy testnet; backend; Android app with email OTP login, embedded wallet, campaign creation/management, donations, donation tracker, on-chain records |
+| Validation | **Current (from Q4 2026)** | Feedback from testers and crypto-for-good communities; first partner organization for a testnet pilot campaign |
+| Pre-mainnet | After a partner pilot | Independent smart contract audit, beneficiary verification process, beneficiary cash-out (off-ramp), external wallet connect, push notifications, HTTPS domain, tip mechanism, legal entity |
+| Beta | After pre-mainnet | Polygon mainnet launch, 100 beta users, NGO partnerships |
+| V1.5 | Later | iOS app, fiat on-ramp (card payments), multi-chain (Base, Celo), DeFi reserve staking |
+| V2.0 | Future | Recurring donations, impact analytics, DAO governance, offramp (mobile money) |
 
 ---
 
