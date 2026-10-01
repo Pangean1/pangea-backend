@@ -68,8 +68,8 @@ PANGEA is a non-profit project and does not pursue financial gain for itself, it
 This principle has direct consequences:
 
 - Zero platform fee on all donations — 100% of what a donor sends reaches the recipient
-- Eligibility for non-profit grants: UNICEF Innovation Fund, Ethereum Foundation, Gitcoin, Open Society Foundations
-- Preferential payment processing rates from providers such as Stripe (1.5% vs standard 2.9% for registered non-profits)
+- Potential eligibility for public-good and non-profit grants (e.g. Gitcoin Grants, Ethereum Foundation, and — once PANGEA is a registered non-profit or fiscally sponsored — programs such as UNICEF Innovation Fund and Open Society Foundations)
+- Potential access to discounted non-profit payment processing rates (offered by some providers to registered non-profits)
 - Institutional trust with NGOs and humanitarian organizations
 - Transparency obligation: PANGEA publishes its operational cost breakdown publicly
 
