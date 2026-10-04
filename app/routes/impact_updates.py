@@ -1,17 +1,18 @@
 import uuid
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from sqlalchemy import select, func
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
+from sqlalchemy import func, select, update as sql_update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth_deps import get_wallet
-from app.database import get_db
+from app.database import AsyncSessionLocal, get_db
 from app.models.campaign import Campaign
 from app.models.donation import Donation
 from app.models.impact_update import ImpactUpdate, MediaType
 from app.models.notification import Notification, NotificationType
 from app.models.user import User
 from app.schemas.impact_update import ImpactUpdateResponse, ImpactUpdateListResponse
+from app.services.email_service import send_notification_email
 from app.services.firebase_service import send_push_notification_multicast
 from app.services.pinata_service import upload_to_ipfs
 from app.services.user_lookup import emails_by_wallet
@@ -117,6 +118,7 @@ async def list_campaign_impact_updates(
 @router.post("/campaigns/{campaign_id}/impact-updates", response_model=ImpactUpdateResponse)
 async def create_impact_update(
     campaign_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
     message: str = Form(...),
     media: UploadFile | None = File(None),
     wallet_info: tuple[uuid.UUID, str] = Depends(get_wallet),
@@ -147,21 +149,37 @@ async def create_impact_update(
     db.add(update)
     await db.flush()
 
-    await _notify_donors(db, campaign, update)
+    to_email = await _notify_donors(db, campaign, update)
 
     await db.commit()
     await db.refresh(update)
+
+    # Emails go out after the response is sent — a campaign with many past
+    # donors would otherwise make the beneficiary wait on one SMTP send each.
+    if to_email:
+        background_tasks.add_task(
+            _email_donors,
+            campaign.name,
+            update.message,
+            [(n.id, email) for n, email in to_email],
+        )
     return (await _build_impact_update_responses(db, [update]))[0]
 
 
-async def _notify_donors(db: AsyncSession, campaign: Campaign, update: ImpactUpdate) -> None:
-    """Creates a Notification row and sends a push to every distinct past donor of this campaign."""
+async def _notify_donors(
+    db: AsyncSession, campaign: Campaign, update: ImpactUpdate
+) -> list[tuple[Notification, str]]:
+    """Creates a Notification row and sends a push to every distinct past donor of this campaign.
+
+    Returns (notification, email) pairs for the donors with an email on file,
+    for the caller to email once the rows are committed.
+    """
     donor_result = await db.execute(
         select(Donation.donor_address).where(Donation.campaign_id == campaign.id).distinct()
     )
     donor_addresses = {row[0] for row in donor_result}
     if not donor_addresses:
-        return
+        return []
 
     # Donation addresses are always stored lowercase, but users.wallet_address
     # isn't consistently normalized elsewhere in the codebase — compare lowered.
@@ -181,12 +199,39 @@ async def _notify_donors(db: AsyncSession, campaign: Campaign, update: ImpactUpd
     # Best-effort delivery flag — the multicast helper only returns an aggregate
     # success count, not per-token results, so we mark a notification sent if
     # its donor had a token registered and at least one push in the batch succeeded.
+    to_email: list[tuple[Notification, str]] = []
     for donor_user in donor_users:
-        db.add(Notification(
+        notification = Notification(
             user_id=donor_user.id,
             campaign_id=campaign.id,
             type=NotificationType.impact_update,
             title=title,
             body=body,
             is_sent=bool(donor_user.fcm_token) and sent_count > 0,
-        ))
+        )
+        db.add(notification)
+        if donor_user.email:
+            to_email.append((notification, donor_user.email))
+    return to_email
+
+
+async def _email_donors(
+    campaign_name: str, update_message: str, recipients: list[tuple[uuid.UUID, str]]
+) -> None:
+    """Background task: emails each donor about a new impact update, marking delivered rows as sent."""
+    email_body = (
+        f'A campaign you donated to, "{campaign_name}", just posted an update:\n\n'
+        f'"{update_message}"\n\n'
+        "Open the PANGEA app to see the full update."
+    )
+    sent_ids = [
+        notification_id
+        for notification_id, email in recipients
+        if await send_notification_email(email, f'Update from "{campaign_name}"', email_body)
+    ]
+    if sent_ids:
+        async with AsyncSessionLocal() as session:
+            await session.execute(
+                sql_update(Notification).where(Notification.id.in_(sent_ids)).values(is_sent=True)
+            )
+            await session.commit()
