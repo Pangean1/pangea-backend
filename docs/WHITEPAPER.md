@@ -18,6 +18,7 @@
 | v4.0 | March 2026 | Updated Section 9: real GitHub repos, actual package versions, real deployment steps from build session |
 | v5.0 | July 2026 | Replaced Google OAuth (Sections 2.3, 4.2, 7) with email OTP + locally-generated embedded wallet |
 | v6.0 | October 2026 | Sourced problem statistics (Section 3.1); marked not-yet-built features as planned; added current prototype status; rewrote roadmap (Section 11) |
+| v6.1 | October 2026 | Notifications now delivered by email instead of Firebase push (Sections 1, 2.4, 4.3, 6, 7, 9, 10, 11) |
 
 ---
 
@@ -49,11 +50,11 @@ Built on Polygon PoS with USDC stablecoin transfers, PANGEA provides:
 - Full on-chain auditability of every donation
 - Non-custodial architecture — PANGEA never holds user funds
 - Email OTP onboarding via ERC-4337 Account Abstraction — no seed phrases required
-- Real-time push notifications triggered by on-chain `DonationSent` events *(planned — backend ready, app-side delivery not yet enabled)*
+- Email notifications triggered by on-chain `DonationSent` events and by beneficiary impact updates *(push notifications to the app planned later)*
 - Publicly verifiable smart contracts deployed on Polygon PoS
 - **Zero platform fee — 100% of every donation reaches the recipient**
 
-**Current status (October 2026):** PANGEA is a working prototype on the Polygon Amoy testnet (test funds only, Android app). Email sign-in, campaign creation and management, donations, the donation tracker and on-chain records all work end to end. Not yet built: card payments, beneficiary cash-out, push notification delivery, beneficiary verification, an independent smart contract audit, and an iOS app. See Section 11.
+**Current status (October 2026):** PANGEA is a working prototype on the Polygon Amoy testnet (test funds only, Android app). Email sign-in, campaign creation and management, donations, the donation tracker and on-chain records all work end to end. Beneficiaries are emailed when a donation arrives, and donors when a campaign they supported posts an update. Not yet built: card payments, beneficiary cash-out, in-app push notifications, beneficiary verification, an independent smart contract audit, and an iOS app. See Section 11.
 
 ---
 
@@ -102,7 +103,7 @@ Every donation is accompanied by a real-time five-stage tracker showing the dono
 | 1 | Donation initiated | Donor confirms donation. Fiat converted to USDC if card. Login session verified. |
 | 2 | Smart contract executed | `PangeaDonation.sol` processes the transfer. `DonationSent` event emitted on-chain. |
 | 3 | Funds arriving at recipient | USDC transferred directly from donor wallet to recipient wallet. No intermediary custody. |
-| 4 | Recipient notified | Push notification dispatched via Firebase Cloud Messaging, triggered by on-chain event. *(Planned — not yet delivered to devices.)* |
+| 4 | Recipient notified | Email sent to the recipient, triggered by the on-chain event. *(In-app push notifications planned later.)* |
 | 5 | Impact confirmed | Recipient posts an acknowledgement — photo, message, or milestone. Stored on IPFS, linked on-chain. |
 
 ---
@@ -153,14 +154,16 @@ PANGEA uses ERC-4337 Account Abstraction via the ZeroDev SDK. After a user authe
 
 ### 4.3 Event-Driven Notification Architecture
 
-*Status: the backend side below is built. Device push delivery is not enabled yet — the app does not register push tokens — so notifications are recorded in the database but not yet delivered to phones.*
+*Status: built and working, with delivery by email. For the prototype stage, notifications are emailed from PANGEA's Gmail sender instead of pushed to the app: no app update or device setup is needed, and it works on any phone. Firebase push code remains in the backend, dormant (the app does not register push tokens yet), for a later in-app push version.*
 
 The Python backend polls the Polygon Amoy RPC (a plain HTTPS endpoint — currently the public `polygon-amoy-bor-rpc.publicnode.com`, not a persistent WebSocket, not Alchemy) for the `DonationSent` event emitted by `PangeaDonation.sol`, using `Web3.HTTPProvider` and `get_logs` on a fixed interval (`LISTENER_POLL_INTERVAL`, default a few seconds). Upon detecting a new event:
 
 1. Event decoded — donor, recipient, token, amount, campaignId, message
-2. Recipient's FCM push token retrieved from PostgreSQL
-3. Firebase Cloud Messaging notification dispatched to recipient's device
-4. Notification record written to database for history
+2. Donation and notification records written to the database (committed first, so the app sees the donation without waiting on email delivery)
+3. Recipient's registered email retrieved from PostgreSQL
+4. Notification email sent to the recipient ("You received a new donation!", amount shown in plain dollars) and the record marked as sent
+
+Sending is capped at 200 notification emails per day overall and 10 per recipient, keeping PANGEA well under Gmail's daily sending limit, which it shares with login codes.
 
 ### 4.4 Card Payment Flow — Fiat to USDC
 
@@ -174,7 +177,7 @@ For donors donating with card the flow is:
 4. **PANGEA Paymaster** sponsors the gas fee — donor pays zero POL
 5. **UserOperation** submitted to Bundler (Alchemy/Pimlico) — `approve()` + `donate()` batched atomically
 6. **PangeaDonation.sol** executes — USDC goes directly donor → recipient, contract holds $0
-7. **DonationSent** event emitted → backend listener → push notification to recipient
+7. **DonationSent** event emitted → backend listener → email notification to recipient
 
 ---
 
@@ -280,7 +283,8 @@ pangea-backend/
 │                            # Tables: users, campaigns, donations, notifications
 ├── services/
 │   ├── event_listener.py    # Web3.py HTTP polling loop (get_logs), not a WebSocket subscription
-│   └── notification.py      # Firebase Admin SDK push dispatch
+│   ├── email_service.py     # Notification emails via Gmail SMTP (daily caps)
+│   └── notification.py      # Firebase Admin SDK push dispatch (dormant)
 ├── api/
 │   ├── users.py             # User registration, profile, FCM push token
 │   ├── donations.py         # Donation history endpoints
@@ -299,7 +303,8 @@ pangea-backend/
 | sqlalchemy | 2.0.48 | Async ORM |
 | asyncpg | 0.31.0 | Async PostgreSQL driver |
 | web3 | 7.14.1 | Blockchain event listener |
-| firebase-admin | 7.3.0 | Push notification dispatch |
+| aiosmtplib | ≥ 3.0.0 | OTP codes and notification emails (Gmail SMTP) |
+| firebase-admin | 7.3.0 | Push notification dispatch (dormant) |
 | pydantic-settings | 2.13.1 | Environment config |
 | alembic | 1.18.4 | Database migrations |
 
@@ -372,7 +377,7 @@ Beneficiary impact updates (§2.4, stage 5) may include a photo or video. This m
 
 **Current scope note:** the impact update record itself (message, media URL, timestamp) lives only in the backend's Postgres database — it is not yet anchored on-chain. The "linked on-chain" language in §2.4's stage 5 describes a future enhancement, not the current implementation; today only the donation transactions themselves (§5) are on-chain.
 
-**Notification fan-out:** posting an impact update also notifies every distinct past donor to that campaign (§4.3) — this is the second of two notification triggers currently wired into the event/action pipeline (the first being `donation_received`, fired when a `DonationSent` event is observed).
+**Notification fan-out:** posting an impact update also emails every distinct past donor to that campaign (§4.3), in the background after the update is saved — this is the second of two notification triggers currently wired into the event/action pipeline (the first being `donation_received`, fired when a `DonationSent` event is observed).
 
 ---
 
@@ -389,7 +394,7 @@ Beneficiary impact updates (§2.4, stage 5) may include a photo or video. This m
 | 5. UserOperation | Donate action encoded as a UserOperation (not a standard tx) |
 | 6. Bundler | ZeroDev's bundler submits the UserOperation to the mempool |
 | 7. EntryPoint | ERC-4337 EntryPoint validates and executes the operation on-chain |
-| 8. Event | `PangeaDonation` emits `DonationSent` — backend listener fires push notification |
+| 8. Event | `PangeaDonation` emits `DonationSent` — backend listener emails the recipient |
 
 ### 7.2 Frontend Integration (React Native/TypeScript)
 
@@ -500,7 +505,8 @@ Before deploying, you need the following accounts and credentials:
 | Polygon RPC | polygon-amoy-bor-rpc.publicnode.com (or Alchemy/Infura) | HTTPS RPC endpoint for Polygon Amoy — public endpoint works, no account required |
 | Any EVM wallet (e.g. MetaMask) | metamask.io | Deployer wallet address + private key |
 | ZeroDev | zerodev.app | Project ID |
-| Firebase | console.firebase.google.com | Service account JSON file |
+| Gmail | myaccount.google.com/apppasswords | Sender address + App Password (OTP codes and notification emails) |
+| Firebase (optional) | console.firebase.google.com | Service account JSON file — only for future push notifications |
 | Polygon faucet | faucet.polygon.technology | Testnet POL for deployment gas |
 
 ### 9.3 Smart Contract Deployment
@@ -551,9 +557,10 @@ cp .env.example .env
 # DATABASE_URL             — postgresql+asyncpg://your_user:your_password@localhost:5432/your_database
 # CONTRACT_ADDRESS         — deployed PangeaDonation.sol address
 # POLYGON_RPC_URL          — https://polygon-amoy-bor-rpc.publicnode.com (plain HTTPS; public endpoint, no Alchemy account needed)
-# FIREBASE_CREDENTIALS_PATH — /home/pangea/backend/firebase-credentials.json
+# GMAIL_USER / GMAIL_APP_PASSWORD — sender for OTP codes and notification emails
+# FIREBASE_CREDENTIALS_PATH — /home/pangea/backend/firebase-credentials.json (optional)
 
-# 4. Upload Firebase credentials (from your local machine)
+# 4. (Optional) Upload Firebase credentials (from your local machine)
 # scp firebase-credentials.json root@SERVER_IP:/home/pangea/backend/
 
 # 5. Install Python dependencies
@@ -614,7 +621,7 @@ PANGEA's non-profit commitment — zero platform fee on all donations — requir
 |---|---|---|
 | Blockchain infrastructure | Alchemy node, Paymaster gas top-ups, contract monitoring | ~$7,200 |
 | Backend hosting | API server, PostgreSQL, Redis (Kamatera VPS) | ~$3,600 |
-| Push notifications | Firebase Cloud Messaging — free tier early on | ~$0 |
+| Notifications | Email via Gmail today; Firebase Cloud Messaging push later — both free tier early on | ~$0 |
 | Smart contract audit | Pre-launch security audit. One-time, amortized over 3 years. | ~$8,000 |
 | Legal & compliance | Non-profit registration, KYC/AML counsel | ~$3,000 |
 | Domain, email & tooling | Cloudflare, Google Workspace, GitHub, Sentry | ~$1,200 |
@@ -690,7 +697,7 @@ Dates replaced by triggers (October 2026): PANGEA is an early-stage, self-funded
 |---|---|---|
 | Alpha — Prototype | **Done (Q2–Q3 2026)** | Smart contract (30/30 tests) deployed on Polygon Amoy testnet; backend; Android app with email OTP login, embedded wallet, campaign creation/management, donations, donation tracker, on-chain records |
 | Validation | **Current (from Q4 2026)** | Feedback from testers and crypto-for-good communities; first partner organization for a testnet pilot campaign |
-| Pre-mainnet | After a partner pilot | Independent smart contract audit, beneficiary verification process, beneficiary cash-out (off-ramp), external wallet connect, push notifications, HTTPS domain, tip mechanism, legal entity |
+| Pre-mainnet | After a partner pilot | Independent smart contract audit, beneficiary verification process, beneficiary cash-out (off-ramp), external wallet connect, in-app push notifications (email notifications already done), HTTPS domain, tip mechanism, legal entity |
 | Beta | After pre-mainnet | Polygon mainnet launch, 100 beta users, NGO partnerships |
 | V1.5 | Later | iOS app, fiat on-ramp (card payments), multi-chain (Base, Celo), DeFi reserve staking |
 | V2.0 | Future | Recurring donations, impact analytics, DAO governance, offramp (mobile money) |
