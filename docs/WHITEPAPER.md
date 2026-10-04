@@ -50,7 +50,7 @@ Built on Polygon PoS with USDC stablecoin transfers, PANGEA provides:
 - Full on-chain auditability of every donation
 - Non-custodial architecture — PANGEA never holds user funds
 - Email OTP onboarding via ERC-4337 Account Abstraction — no seed phrases required
-- Email notifications triggered by on-chain `DonationSent` events and by beneficiary impact updates *(push notifications to the app planned later)*
+- Email notifications triggered by on-chain `DonationSent` events and by beneficiary impact updates
 - Publicly verifiable smart contracts deployed on Polygon PoS
 - **Zero platform fee — 100% of every donation reaches the recipient**
 
@@ -103,7 +103,7 @@ Every donation is accompanied by a real-time five-stage tracker showing the dono
 | 1 | Donation initiated | Donor confirms donation. Fiat converted to USDC if card. Login session verified. |
 | 2 | Smart contract executed | `PangeaDonation.sol` processes the transfer. `DonationSent` event emitted on-chain. |
 | 3 | Funds arriving at recipient | USDC transferred directly from donor wallet to recipient wallet. No intermediary custody. |
-| 4 | Recipient notified | Email sent to the recipient, triggered by the on-chain event. *(In-app push notifications planned later.)* |
+| 4 | Recipient notified | Email sent to the recipient, triggered by the on-chain event. |
 | 5 | Impact confirmed | Recipient posts an acknowledgement — photo, message, or milestone. Stored on IPFS, linked on-chain. |
 
 ---
