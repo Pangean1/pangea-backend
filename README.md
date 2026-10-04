@@ -6,7 +6,7 @@
 
 > PANGEA: non-profit peer-to-peer on-chain humanitarian donation platform.
 
-PANGEA lets donors send donations directly to verified humanitarian campaigns with zero platform fees, full on-chain transparency, and immutable audit trails. This repository is the Python/FastAPI backend that indexes on-chain `DonationSent` events, stores them in PostgreSQL, and delivers Firebase push notifications to campaign recipients in real time.
+PANGEA lets donors send donations directly to verified humanitarian campaigns with zero platform fees, full on-chain transparency, and immutable audit trails. This repository is the Python/FastAPI backend that indexes on-chain `DonationSent` events, stores them in PostgreSQL, and emails campaign recipients when a donation arrives (and past donors when a campaign posts an impact update).
 
 - Smart contracts: [pangea-contracts](https://github.com/Pangean1/pangea-contracts)
 - Frontend UI: [pangea-frontend](https://github.com/Pangean1/pangea-frontend)
@@ -41,7 +41,7 @@ PANGEA lets donors send donations directly to verified humanitarian campaigns wi
 ├── requirements.txt               # Python dependencies
 ├── .env                           # Local env overrides  (not committed)
 ├── .env.example                   # Template – copy to .env and fill in values
-├── firebase-credentials.json      # Firebase service-account key  (not committed)
+├── firebase-credentials.json      # Firebase service-account key  (optional, dormant; not committed)
 │
 └── app/
     ├── database.py                # Async SQLAlchemy engine + session factory
@@ -51,7 +51,7 @@ PANGEA lets donors send donations directly to verified humanitarian campaigns wi
     │   ├── user.py                # User  – wallet address + FCM token
     │   ├── campaign.py            # Campaign – mirrors on-chain campaign struct
     │   ├── donation.py            # Donation – one row per DonationSent event
-    │   └── notification.py        # Notification – FCM delivery record
+    │   └── notification.py        # Notification – delivery record (email today)
     ├── schemas/
     │   ├── user.py
     │   ├── campaign.py
@@ -63,7 +63,8 @@ PANGEA lets donors send donations directly to verified humanitarian campaigns wi
     │   └── donations.py           # GET /donations  + GET /campaigns/{id}/donations
     └── services/
         ├── web3_listener.py       # Background asyncio task – polls for chain events
-        └── firebase_service.py    # Firebase Admin SDK wrapper
+        ├── email_service.py       # Notification emails via Gmail SMTP (daily caps)
+        └── firebase_service.py    # Firebase Admin SDK wrapper (dormant – no device tokens yet)
 ```
 
 **Request path (REST)**
@@ -79,7 +80,7 @@ Polygon Amoy RPC
       │  HTTP polling (get_logs)
       ▼
 web3_listener  ──► PostgreSQL  (donations, campaigns, notifications)
-                └► Firebase FCM  (push notification to recipient)
+                └► Email via Gmail SMTP  (notification to recipient)
 ```
 
 ---
@@ -112,6 +113,7 @@ The `run_listener()` coroutine starts as a background `asyncio` task during Fast
 │  f. INSERT Notification row                               │
 │  g. If user has fcm_token → send_push_notification()     │
 │  h. COMMIT                                                │
+│  i. If user has email → send_notification_email()        │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -129,7 +131,8 @@ The `run_listener()` coroutine starts as a background `asyncio` task during Fast
 | PostgreSQL | 14+ |
 | pip / venv | latest |
 | A Polygon Amoy RPC URL | e.g. `https://polygon-amoy-bor-rpc.publicnode.com` |
-| Firebase service-account JSON | from Firebase console |
+| Gmail account + App Password | for OTP codes and notification emails |
+| Firebase service-account JSON | optional – push delivery is dormant |
 
 ### Installation
 
@@ -149,7 +152,7 @@ pip install -r requirements.txt
 cp .env.example .env
 nano .env                           # set DATABASE_URL, CONTRACT_ADDRESS, etc.
 
-# 5. Place your Firebase service-account key
+# 5. (Optional) Place your Firebase service-account key – push delivery is dormant
 cp /path/to/downloaded-key.json firebase-credentials.json
 ```
 
@@ -195,7 +198,8 @@ Copy `.env.example` to `.env` and set the values below.
 | `CONTRACT_ADDRESS` | _(empty)_ | Deployed `PangeaDonation` contract address |
 | `LISTENER_START_BLOCK` | `0` | Block to begin scanning from (set to deployment block) |
 | `LISTENER_POLL_INTERVAL` | `5` | Seconds between RPC polling cycles |
-| `FIREBASE_CREDENTIALS_PATH` | `firebase_credentials.json` | Path to Firebase service-account JSON |
+| `GMAIL_USER` / `GMAIL_APP_PASSWORD` | _(empty)_ | Gmail sender for OTP codes and notification emails |
+| `FIREBASE_CREDENTIALS_PATH` | `firebase_credentials.json` | Path to Firebase service-account JSON (optional – push delivery is dormant) |
 
 ---
 
@@ -312,7 +316,7 @@ sudo journalctl -u pangea-backend -f
 |--------|------|-------|
 | `id` | UUID | Primary key |
 | `wallet_address` | VARCHAR(42) | Checksummed Ethereum address, unique |
-| `fcm_token` | VARCHAR(512) | Firebase Cloud Messaging token, nullable |
+| `fcm_token` | VARCHAR(512) | Firebase Cloud Messaging token, nullable (never set yet – the app doesn't register push tokens) |
 | `email` | VARCHAR(256) | Set at signup via email OTP; always present |
 | `created_at` | TIMESTAMPTZ | Server default |
 | `updated_at` | TIMESTAMPTZ | Server default, updated on write |
@@ -365,7 +369,7 @@ sudo journalctl -u pangea-backend -f
 | `title` | VARCHAR(256) | Notification title |
 | `body` | TEXT | Notification body |
 | `is_read` | BOOLEAN | Client has read this notification |
-| `is_sent` | BOOLEAN | FCM delivery succeeded |
+| `is_sent` | BOOLEAN | Delivery succeeded (email, or FCM push if a token is registered) |
 | `created_at` | TIMESTAMPTZ | |
 
 ### `impact_updates`
@@ -394,7 +398,8 @@ sudo journalctl -u pangea-backend -f
 | `asyncpg` | ≥ 0.29.0 | Async PostgreSQL driver |
 | `psycopg2-binary` | ≥ 2.9.9 | Sync driver (Alembic) |
 | `web3` | ≥ 7.0.0 | Ethereum / Polygon client |
-| `firebase-admin` | ≥ 6.5.0 | Firebase Cloud Messaging |
+| `aiosmtplib` | ≥ 3.0.0 | Gmail SMTP (OTP codes + notification emails) |
+| `firebase-admin` | ≥ 6.5.0 | Firebase Cloud Messaging (dormant) |
 | `python-dotenv` | ≥ 1.0.0 | `.env` file loading |
 | `httpx` | ≥ 0.27.0 | Async HTTP client |
 
