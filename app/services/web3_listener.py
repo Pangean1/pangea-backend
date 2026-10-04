@@ -2,8 +2,8 @@
 Web3 event listener for PangeaDonation contract.
 
 Polls the Polygon Amoy RPC for CampaignCreated and DonationSent events,
-persists new campaigns and donations to the database, and dispatches
-Firebase push notifications to the recipient's registered device(s).
+persists new campaigns and donations to the database, and notifies the
+recipient by email (plus Firebase push, if a device token is ever registered).
 
 The listener runs as a background asyncio task started during FastAPI lifespan.
 """
@@ -22,6 +22,7 @@ from app.models.campaign import Campaign
 from app.models.donation import Donation
 from app.models.notification import Notification, NotificationType
 from app.models.user import User
+from app.services.email_service import format_usd, send_notification_email
 from app.services.firebase_service import send_push_notification
 from config import settings
 
@@ -139,7 +140,7 @@ async def _handle_donation_event(event: dict) -> None:
             type=NotificationType.donation_received,
             title="New donation received!",
             body=(
-                f"You received a donation of {amount_wei} wei"
+                f"You received a donation of {format_usd(amount_wei)}"
                 + (f" for campaign \"{campaign.name}\"." if campaign else ".")
             ),
         )
@@ -174,6 +175,20 @@ async def _handle_donation_event(event: dict) -> None:
             amount_wei,
             donor,
         )
+
+        # Emailed only after the commit, so SMTP latency never delays the
+        # donation becoming visible to the app's indexing poll.
+        if recipient_user and recipient_user.email:
+            email_body = (
+                f"Good news! You received a donation of {format_usd(amount_wei)}"
+                + (f" for your campaign \"{campaign.name}\"." if campaign else ".")
+                + "\n\nOpen the PANGEA app to see all your incoming donations."
+            )
+            if await send_notification_email(
+                recipient_user.email, "You received a new donation!", email_body
+            ):
+                notification.is_sent = True
+                await session.commit()
 
 
 async def _scan_block_range(contract, from_block: int, to_block: int) -> None:
