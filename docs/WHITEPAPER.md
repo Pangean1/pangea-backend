@@ -6,6 +6,8 @@
 
 > 📲 [PANGEA APP - QR](PangeaQR.jpg)
 
+> 🎥 PANGEA Demo video: https://youtube.com/shorts/sWp-1RhcatA
+
 ---
 
 ## Version History
