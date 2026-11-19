@@ -1,6 +1,6 @@
 # PANGEA — White Paper & Technical Specification
 
-**Version 4.0 — March 2026**
+**Version 6.2 — November 2026**
 
 > 📁 Repositories: [pangea-contracts](https://github.com/Pangean1/pangea-contracts) · [pangea-backend](https://github.com/Pangean1/pangea-backend) · [pangea-frontend](https://github.com/Pangean1/pangea-frontend)
 
@@ -21,6 +21,7 @@
 | v5.0 | July 2026 | Replaced Google OAuth (Sections 2.3, 4.2, 7) with email OTP + locally-generated embedded wallet |
 | v6.0 | October 2026 | Sourced problem statistics (Section 3.1); marked not-yet-built features as planned; added current prototype status; rewrote roadmap (Section 11) |
 | v6.1 | October 2026 | Notifications now delivered by email instead of Firebase push (Sections 1, 2.4, 4.3, 6, 7, 9, 10, 11) |
+| v6.2 | November 2026 | Repositioned PANGEA as an app that works alongside established humanitarian organizations; Section 3 renamed "Where PANGEA Fits" with a new 3.3 "Who PANGEA Is For"; "platform fee" renamed "PANGEA fee" (Sections 1, 2, 3, 10) |
 
 ---
 
@@ -28,7 +29,7 @@
 
 1. [Executive Summary](#1-executive-summary)
 2. [Core Principles & Product Definitions](#2-core-principles--product-definitions)
-3. [Problem Statement](#3-problem-statement)
+3. [Where PANGEA Fits](#3-where-pangea-fits)
 4. [Platform Architecture](#4-platform-architecture)
 5. [Smart Contract Specification](#5-smart-contract-specification)
 6. [Backend Service](#6-backend-service-python--fastapi)
@@ -44,7 +45,9 @@
 
 ## 1. Executive Summary
 
-PANGEA is a non-custodial, blockchain-powered peer-to-peer (P2P) humanitarian donation platform that enables individuals and philanthropic organizations to send financial aid directly to beneficiaries — without intermediaries, delays, or opacity.
+PANGEA is a non-custodial, blockchain-powered peer-to-peer (P2P) humanitarian donation app for small, fast, direct donations. Anyone can start a campaign from a phone, anyone can give a few dollars, and every donation goes straight from donor to beneficiary with a public, permanent record. No crypto knowledge is needed.
+
+PANGEA is built to work alongside established humanitarian organizations and giving websites, not to replace them. It focuses on small, specific and unexpected needs that large appeals are not designed to reach. Individuals and organizations alike can use it, including established organizations looking for a simple mobile channel for small field campaigns.
 
 Built on Polygon PoS with USDC stablecoin transfers, PANGEA provides:
 
@@ -54,7 +57,7 @@ Built on Polygon PoS with USDC stablecoin transfers, PANGEA provides:
 - Email OTP onboarding via ERC-4337 Account Abstraction — no seed phrases required
 - Email notifications triggered by on-chain `DonationSent` events and by beneficiary impact updates
 - Publicly verifiable smart contracts deployed on Polygon PoS
-- **Zero platform fee — 100% of every donation reaches the recipient**
+- **Zero PANGEA fee — 100% of every donation reaches the recipient**
 
 **Current status (October 2026):** PANGEA is a working prototype on the Polygon Amoy testnet (test funds only, Android app). Email sign-in, campaign creation and management, donations, the donation tracker and on-chain records all work end to end. Beneficiaries are emailed when a donation arrives, and donors when a campaign they supported posts an update. Not yet built: card payments, beneficiary cash-out, in-app push notifications, beneficiary verification, an independent smart contract audit, and an iOS app. See Section 11.
 
@@ -66,11 +69,11 @@ This section formalizes the foundational decisions that define PANGEA. These are
 
 ### 2.1 Non-Profit Mission
 
-PANGEA is a non-profit project and does not pursue financial gain for itself, its founders, or its operators. The only revenue collected is the strict minimum required to sustain platform infrastructure: server costs, security audits, legal compliance, and a lean core team.
+PANGEA is a non-profit app and does not pursue financial gain for itself, its founders, or its operators. The only revenue collected is the strict minimum required to sustain app infrastructure: server costs, security audits, legal compliance, and a lean core team.
 
 This principle has direct consequences:
 
-- Zero platform fee on all donations — 100% of what a donor sends reaches the recipient
+- Zero PANGEA fee on all donations — 100% of what a donor sends reaches the recipient
 - Potential eligibility for public-good and non-profit grants (e.g. Gitcoin Grants, Ethereum Foundation, and — once PANGEA is a registered non-profit or fiscally sponsored — programs such as UNICEF Innovation Fund and Open Society Foundations)
 - Potential access to discounted non-profit payment processing rates (offered by some providers to registered non-profits)
 - Institutional trust with NGOs and humanitarian organizations
@@ -78,7 +81,7 @@ This principle has direct consequences:
 
 ### 2.2 Non-Crypto UX — The Invisible Blockchain
 
-PANGEA is a blockchain-powered platform that most users will never realize uses blockchain. This is by design.
+PANGEA is a blockchain-powered app that most users will never realize uses blockchain. This is by design.
 
 The donation flow is designed around two buttons. *Status: today the prototype has one working flow — every donor uses an automatically created embedded wallet. "Donate with Card" is shown as a disabled placeholder, and connecting an external wallet (MetaMask etc.) is planned before mainnet.*
 
@@ -110,30 +113,38 @@ Every donation is accompanied by a real-time five-stage tracker showing the dono
 
 ---
 
-## 3. Problem Statement
+## 3. Where PANGEA Fits
 
 ### 3.1 Current Humanitarian Aid Landscape
 
-Humanitarian aid is both scarce and inefficiently delivered:
+Established humanitarian organizations and giving websites do vital work at scale: major disasters, regular giving, large donors and long-term programs. Even so, humanitarian aid is scarce and cannot always cover small, specific and unexpected needs:
 
 - **Underfunded:** in 2023, UN-coordinated humanitarian appeals received $21.8 billion — only 38% of the $56.7 billion required ([UN OCHA, Global Humanitarian Overview 2023, December update](https://www.unocha.org/publications/report/world/global-humanitarian-overview-2023-december-update-snapshot-31-december-2023)).
 - **Costly to send:** the global average cost of sending $200 across borders was 6.4% in Q4 2023 ([World Bank, Remittance Prices Worldwide](https://www.worldbank.org/en/news/press-release/2024/06/26/remittances-slowed-in-2023-expected-to-grow-faster-in-2024)).
-- **Layered intermediaries:** in 2021, 75% of funding to local and national NGOs arrived indirectly, through one or more intermediaries ([Development Initiatives, Global Humanitarian Assistance Report 2022](https://devinit.org/resources/global-humanitarian-assistance-report-2022/recipients-and-delivery-of-humanitarian-funding/)).
+- **Indirect routes:** in 2021, 75% of funding to local and national NGOs arrived indirectly, through one or more organizations. This structure supports coordination at scale, but it adds steps between a donor and a small, local need ([Development Initiatives, Global Humanitarian Assistance Report 2022](https://devinit.org/resources/global-humanitarian-assistance-report-2022/recipients-and-delivery-of-humanitarian-funding/)).
 
-Systemic inefficiencies persist across the traditional donation pipeline:
+Systemic issues persist across the traditional donation pipeline, and they weigh most on small, cross-border gifts:
 
-| Problem | Current Impact | PANGEA Solution |
+| Issue | Today | With PANGEA |
 |---|---|---|
-| Intermediary and transfer fees | ~6.4% average cross-border transfer cost (World Bank, 2023), plus overhead at each intermediary layer | 0% platform fee on transfers |
-| Settlement delays | 3–7 business days for wire transfers | Near-instant blockchain confirmation |
-| Opacity of fund flow | Donors cannot verify end-use | Immutable on-chain transaction record |
-| Geographic restrictions | Banking exclusion for many recipients | Any smartphone + internet = access |
+| Small, specific campaigns | Hard to fit into large appeals | Anyone can create a campaign from a phone in minutes |
+| Transfer costs on small gifts | ~6.4% average cost to send $200 across borders (World Bank, 2023) | Zero PANGEA fee |
+| Settlement time | 3–7 business days for wire transfers | Near-instant blockchain confirmation |
+| Visibility of each gift | Donors usually see overall reports | Each donation individually visible on a permanent public record |
+| Access for recipients | Many recipients have no bank account | Any smartphone + internet = access |
 | Currency volatility risk | Multi-step currency conversion and settlement delays erode aid value | Stablecoin transfers preserve value |
-| Custodial risk | Platform insolvency can freeze funds | Non-custodial. User controls keys |
+| Custody | Funds are held by a third party until paid out | Non-custodial: funds go straight from donor to recipient |
 
 ### 3.2 The Case for Blockchain
 
-Stablecoins (USDC) eliminate cryptocurrency volatility. Smart contracts replace human intermediaries with deterministic, publicly auditable code. Every transaction is permanently recorded on Polygon PoS — verifiable by any party at any time with no permission required.
+Stablecoins (USDC) eliminate cryptocurrency volatility. Smart contracts execute each transfer with deterministic, publicly auditable code. Every transaction is permanently recorded on Polygon PoS — verifiable by any party at any time with no permission required.
+
+### 3.3 Who PANGEA Is For
+
+- **Small campaigns:** specific, urgent needs that are too small or too sudden for a large appeal.
+- **Small donors:** people who want to give a few dollars and see exactly where they went.
+- **Non-crypto and crypto users alike:** email sign-in with no wallet, passwords or jargon for everyone, and open, verifiable on-chain records for those who know crypto. Many established giving websites accept crypto donations through a web page aimed at wallet holders. PANGEA brings the same direct, verifiable giving to everyone, from a phone app.
+- **Organizations:** grassroots groups, and established organizations looking for a mobile channel for small field campaigns.
 
 ---
 
@@ -615,7 +626,7 @@ Notes:
 
 ## 10. Sustainability Model
 
-PANGEA's non-profit commitment — zero platform fee on all donations — requires a deliberate financial strategy to sustain the infrastructure that makes that promise possible.
+PANGEA's non-profit commitment — zero PANGEA fee on all donations — requires a deliberate financial strategy to sustain the infrastructure that makes that promise possible.
 
 ### 10.1 Annual Operating Costs
 
